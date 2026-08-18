@@ -270,7 +270,7 @@ test('read_topic keeps structured mode when explicitly requested', async () => {
 // Tool registration tests
 // ========================
 
-const READ_ONLY_TOOLS = [
+const EXPECTED_TOOLS = [
   'shuiyuan_search',
   'shuiyuan_filter_topics',
   'shuiyuan_read_topic',
@@ -279,6 +279,7 @@ const READ_ONLY_TOOLS = [
   'shuiyuan_list_user_posts',
   'shuiyuan_get_chat_messages',
   'shuiyuan_get_draft',
+  'shuiyuan_download_media',
 ];
 
 test('read-only server registers exactly read tools', async () => {
@@ -292,7 +293,7 @@ test('read-only server registers exactly read tools', async () => {
   });
 
   const registeredTools = Object.keys(tools).sort();
-  const expected = READ_ONLY_TOOLS.sort();
+  const expected = EXPECTED_TOOLS.sort();
   assert.deepEqual(registeredTools, expected);
 });
 

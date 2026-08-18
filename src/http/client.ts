@@ -93,6 +93,28 @@ export class HttpClient {
     return this.request("PUT", path, body, { signal, extraHeaders: headers });
   }
 
+  async downloadBinary(path: string, { signal }: { signal?: AbortSignal } = {}): Promise<Uint8Array> {
+    const url = this.urlFor(path);
+    this.opts.logger.debug(`HTTP GET (binary) ${url}`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.opts.timeoutMs);
+    const combinedSignal = mergeSignals([signal, controller.signal]);
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: this.headers(),
+        signal: combinedSignal,
+      });
+      if (!res.ok) {
+        throw new HttpError(res.status, `HTTP ${res.status} for GET ${url}`);
+      }
+      const buf = await res.arrayBuffer();
+      return new Uint8Array(buf);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   async postMultipart(path: string, formData: FormData, { signal, headers }: { signal?: AbortSignal, headers?: Record<string, string>} = {}) {
     return this.requestMultipart("POST", path, formData, { signal, extraHeaders: headers });
   }
