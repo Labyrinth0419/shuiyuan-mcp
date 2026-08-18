@@ -5,6 +5,8 @@ node_modules/*
 packaging/**/bin/*
 packaging/**/obj/*
 .mcp.json
+.cursor/
+.claude/*
 
 .pi/
 AGENTS.md
