@@ -1,17 +1,12 @@
 /**
  * MCP Prompts Registry
  *
- * Registers prompts that provide guided workflows for common tasks.
+ * All prompts have been removed (v0.4.0).
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SiteState } from "../site/state.js";
 import type { Logger } from "../util/logger.js";
-import {
-  sqlQueryPromptName,
-  sqlQueryPromptSchema,
-  getSqlQueryPromptContent,
-} from "./sql_query.js";
 
 /** Narrowed interface for prompt registration */
 export type PromptRegistrar = Pick<McpServer, "registerPrompt">;
@@ -23,41 +18,11 @@ export interface PromptContext {
 
 /**
  * Registers all MCP prompts.
+ * Currently empty - all prompts were removed in v0.4.0.
  */
 export function registerAllPrompts(
-  server: PromptRegistrar,
-  ctx: PromptContext
-): void {
-  // Always register prompts; access is enforced at tool call time by Discourse
-  registerSqlQueryPrompt(server, ctx);
-}
-
-function registerSqlQueryPrompt(
-  server: PromptRegistrar,
+  _server: PromptRegistrar,
   _ctx: PromptContext
 ): void {
-  server.registerPrompt(
-    sqlQueryPromptName,
-    {
-      description:
-        "Guided workflow for database queries: discover schema, write SQL, run queries via Data Explorer",
-      argsSchema: sqlQueryPromptSchema.shape,
-    },
-    async (args) => {
-      const parsed = sqlQueryPromptSchema.safeParse(args);
-      const validArgs = parsed.success ? parsed.data : {};
-
-      return {
-        messages: [
-          {
-            role: "user",
-            content: {
-              type: "text",
-              text: getSqlQueryPromptContent(validArgs),
-            },
-          },
-        ],
-      };
-    }
-  );
+  // No prompts to register
 }

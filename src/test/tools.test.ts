@@ -18,7 +18,6 @@ type ToolHandler = (args: Record<string, unknown>, extra: unknown) => Promise<To
 /** Creates a minimal mock server that captures tool registrations for testing */
 function createMockServer(): { server: ToolRegistrar; tools: Record<string, { handler: ToolHandler }> } {
   const tools: Record<string, { handler: ToolHandler }> = {};
-  // Cast needed because mock doesn't implement full SDK callback signature
   const server = {
     registerTool(name: string, _meta: Record<string, unknown>, handler: ToolHandler) {
       tools[name] = { handler };
@@ -39,7 +38,6 @@ test('registers built-in tools', async () => {
 
     await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only' } satisfies RegistryOptions);
 
-    // Read tools should be registered
     assert.ok('shuiyuan_search' in tools);
     assert.ok('shuiyuan_read_topic' in tools);
   });
@@ -48,7 +46,6 @@ test('registers built-in tools', async () => {
 
   await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only' } satisfies RegistryOptions);
 
-  // If no error is thrown we consider registration successful.
   assert.ok(true);
 });
 
@@ -83,7 +80,6 @@ test('select-site then search flow works with mocked HTTP', async () => {
 
   await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only' });
 
-  // Mock fetch
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
@@ -97,11 +93,9 @@ test('select-site then search flow works with mocked HTTP', async () => {
   }) as any;
 
   try {
-    // Select site
     const selectRes = await tools['shuiyuan_select_site'].handler({ site: 'https://example.com' }, {});
     assert.equal(selectRes?.isError, undefined);
 
-    // Search - now returns JSON-only (v0.2.0)
     const searchRes = await tools['shuiyuan_search'].handler({ query: 'hello' }, {});
     const text = String(searchRes?.content?.[0]?.text || '');
     const json = JSON.parse(text);
@@ -119,7 +113,6 @@ test('tethered mode hides select_site and allows search without selection', asyn
 
   const { server, tools } = createMockServer();
 
-  // Mock fetch
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
@@ -133,18 +126,14 @@ test('tethered mode hides select_site and allows search without selection', asyn
   }) as any;
 
   try {
-    // Emulate --site tethering: validate via /about.json and preselect site
     const { base, client } = siteState.buildClientForSite('https://example.com');
     await client.get('/about.json');
     siteState.selectSite(base);
 
-    // Register tools with select_site hidden
     await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only', hideSelectSite: true } satisfies RegistryOptions);
 
-    // Ensure select tool is not exposed
     assert.ok(!('shuiyuan_select_site' in tools));
 
-    // Search should work without calling select first - now returns JSON-only (v0.2.0)
     const searchRes = await tools['shuiyuan_search'].handler({ query: 'hello' }, {});
     const text = String(searchRes?.content?.[0]?.text || '');
     const json = JSON.parse(text);
@@ -161,7 +150,6 @@ test('default-search prefix is applied to queries', async () => {
 
   const { server, tools } = createMockServer();
 
-  // Mock fetch to capture the search URL
   let lastUrl: string | undefined;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, _init?: RequestInit) => {
@@ -296,10 +284,9 @@ test('read_topic keeps structured mode when explicitly requested', async () => {
 });
 
 // ========================
-// Tool registration tests - verify tools are exposed based on auth context
+// Tool registration tests
 // ========================
 
-// Define expected tool sets for each context
 const READ_ONLY_TOOLS = [
   'shuiyuan_select_site',
   'shuiyuan_search',
@@ -312,14 +299,7 @@ const READ_ONLY_TOOLS = [
   'shuiyuan_get_draft',
 ];
 
-// Admin-only tools are now always registered; access is checked at call time
-const ADMIN_READ_TOOLS = [
-  'shuiyuan_list_users',
-  'shuiyuan_get_query',
-  'shuiyuan_run_query',
-];
-
-test('read-only server registers read + admin-read tools (access checked at call time)', async () => {
+test('read-only server registers exactly read tools', async () => {
   const logger = new Logger('silent');
   const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
   const { server, tools } = createMockServer();
@@ -330,16 +310,14 @@ test('read-only server registers read + admin-read tools (access checked at call
   });
 
   const registeredTools = Object.keys(tools).sort();
-  const expectedTools = [...READ_ONLY_TOOLS, ...ADMIN_READ_TOOLS].sort();
-  assert.deepEqual(registeredTools, expectedTools);
+  assert.deepEqual(registeredTools, READ_ONLY_TOOLS.sort());
 });
 
-test('write tools are never registered (read-only server)', async () => {
+test('write tools are never registered', async () => {
   const logger = new Logger('silent');
   const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
   const { server, tools } = createMockServer();
 
-  // Even with allowWrites=true, no write tools exist anymore
   await registerAllTools(server, siteState, logger, {
     allowWrites: true,
     toolsMode: 'discourse_api_only'
@@ -351,6 +329,9 @@ test('write tools are never registered (read-only server)', async () => {
     assert.ok(!name.includes('update_'));
     assert.ok(!name.includes('delete_'));
     assert.ok(!name.includes('upload'));
+    assert.ok(!name.includes('list_users'));
+    assert.ok(!name.includes('get_query'));
+    assert.ok(!name.includes('run_query'));
   }
 });
 
@@ -366,13 +347,12 @@ test('tethered mode hides select_site from tool list', async () => {
   });
 
   const registeredTools = Object.keys(tools).sort();
-  const expectedTools = [...READ_ONLY_TOOLS, ...ADMIN_READ_TOOLS].filter(t => t !== 'shuiyuan_select_site').sort();
+  const expectedTools = READ_ONLY_TOOLS.filter(t => t !== 'shuiyuan_select_site').sort();
   assert.deepEqual(registeredTools, expectedTools);
 });
 
-
 // ========================
-// Resource registration tests - verify resources are exposed based on auth context
+// Resource registration tests
 // ========================
 
 const BASE_RESOURCES = [
@@ -384,14 +364,6 @@ const BASE_RESOURCES = [
   'user_drafts',
 ];
 
-const ADMIN_RESOURCES = [
-  'explorer_schema',
-  'explorer_schema_tables',
-  'explorer_queries',
-  'explorer_queries_page',
-];
-
-/** Creates a mock server that captures resource registrations */
 function createMockResourceServer(): { server: ResourceRegistrar; resources: Record<string, unknown> } {
   const resources: Record<string, unknown> = {};
   const server = {
@@ -402,7 +374,7 @@ function createMockResourceServer(): { server: ResourceRegistrar; resources: Rec
   return { server, resources };
 }
 
-test('resources always includes Data Explorer resources regardless of auth', async () => {
+test('resources are registered without admin-only explorer resources', async () => {
   const logger = new Logger('silent');
   const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
   const { server, resources } = createMockResourceServer();
@@ -410,15 +382,13 @@ test('resources always includes Data Explorer resources regardless of auth', asy
   registerAllResources(server, { siteState, logger });
 
   const registeredResources = Object.keys(resources).sort();
-  const expectedResources = [...BASE_RESOURCES, ...ADMIN_RESOURCES].sort();
-  assert.deepEqual(registeredResources, expectedResources);
+  assert.deepEqual(registeredResources, BASE_RESOURCES.sort());
 });
 
 // ========================
-// Prompt registration tests - verify prompts are exposed based on auth context
+// Prompt registration tests
 // ========================
 
-/** Creates a mock server that captures prompt registrations */
 function createMockPromptServer(): { server: PromptRegistrar; prompts: Record<string, unknown> } {
   const prompts: Record<string, unknown> = {};
   const server = {
@@ -429,12 +399,12 @@ function createMockPromptServer(): { server: PromptRegistrar; prompts: Record<st
   return { server, prompts };
 }
 
-test('prompts always includes sql_query prompt regardless of auth', async () => {
+test('no prompts are registered (all removed in v0.4.0)', async () => {
   const logger = new Logger('silent');
   const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
   const { server, prompts } = createMockPromptServer();
 
   registerAllPrompts(server, { siteState, logger });
 
-  assert.deepEqual(Object.keys(prompts), ['sql_query']);
+  assert.deepEqual(Object.keys(prompts), []);
 });

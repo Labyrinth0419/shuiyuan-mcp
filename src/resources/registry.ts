@@ -23,10 +23,7 @@ import {
   type LeanUserChatChannel,
   type LeanDraft,
 } from "../util/json_response.js";
-import {
-  registerExplorerSchemaResource,
-  registerExplorerQueriesResource,
-} from "./data_explorer.js";
+
 
 /** Narrowed interface for resource registration - only requires resource method */
 export type ResourceRegistrar = Pick<McpServer, "resource">;
@@ -50,10 +47,6 @@ export function registerAllResources(
   registerChatChannelsResource(server, ctx);
   registerUserChatChannelsResource(server, ctx);
   registerUserDraftsResource(server, ctx);
-
-  // Data Explorer resources are always registered; access is checked at call time
-  registerExplorerSchemaResource(server, ctx);
-  registerExplorerQueriesResource(server, ctx);
 }
 
 /**

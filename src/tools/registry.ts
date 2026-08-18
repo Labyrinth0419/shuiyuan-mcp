@@ -8,15 +8,10 @@ import { registerGetUser } from "./builtin/get_user.js";
 import { registerSelectSite } from "./builtin/select_site.js";
 import { registerFilterTopics } from "./builtin/filter_topics.js";
 import { registerListUserPosts } from "./builtin/list_user_posts.js";
-import { registerListUsers } from "./builtin/list_users.js";
 import { registerGetChatMessages } from "./builtin/get_chat_messages.js";
 import {
   registerGetDraft,
 } from "./builtin/drafts.js";
-import {
-  registerGetQuery,
-  registerRunQuery,
-} from "./builtin/data_explorer/index.js";
 
 // Note: The following tools have been replaced by MCP Resources (v0.2.0):
 // - shuiyuan_list_categories → shuiyuan://site/categories
@@ -66,11 +61,6 @@ export async function registerAllTools(
   registerReadPost(server, ctx, { allowWrites: false });
   registerGetUser(server, ctx, { allowWrites: false, showEmails: opts.showEmails });
   registerListUserPosts(server, ctx, { allowWrites: false });
-  registerListUsers(server, ctx, { allowWrites: false, showEmails: opts.showEmails });
   registerGetChatMessages(server, ctx, { allowWrites: false });
   registerGetDraft(server, ctx, { allowWrites: false });
-
-  // Data Explorer tools (read-only; admin access checked at call time)
-  registerGetQuery(server, ctx, { allowWrites: false });
-  registerRunQuery(server, ctx, { allowWrites: false });
 }
