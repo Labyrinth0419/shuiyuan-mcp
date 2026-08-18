@@ -14,7 +14,9 @@ import {
 import { registerDownloadMedia } from "./builtin/download_media.js";
 import { registerTopicMeta } from "./builtin/topic_meta.js";
 import { registerUserCard } from "./builtin/user_card.js";
-
+import { registerCategoryTopics } from "./builtin/category_topics.js";
+import { registerTagTopics } from "./builtin/tag_topics.js";
+import { registerPostReplies } from "./builtin/post_replies.js";
 // Note: The following tools have been replaced by MCP Resources (v0.2.0):
 // - shuiyuan_list_categories → shuiyuan://site/categories
 // - shuiyuan_list_tags → shuiyuan://site/tags
@@ -62,6 +64,11 @@ export async function registerAllTools(
   // Metadata and user tools
   registerTopicMeta(server, ctx, { allowWrites: false });
   registerUserCard(server, ctx, { allowWrites: false });
+
+  // Navigation tools (browse by category, tag, reply chain)
+  registerCategoryTopics(server, ctx, { allowWrites: false });
+  registerTagTopics(server, ctx, { allowWrites: false });
+  registerPostReplies(server, ctx, { allowWrites: false });
 
   // Media download tool (writes to local filesystem)
   registerDownloadMedia(server, ctx, { allowWrites: true });
