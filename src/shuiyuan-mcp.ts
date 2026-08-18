@@ -24,8 +24,6 @@ export async function main(rawArgs = process.argv.slice(2)) {
     site,
     "--tools_mode",
     "discourse_api_only",
-    "--allow_writes",
-    "--read_only=false",
     ...rawArgs,
   ]);
 }

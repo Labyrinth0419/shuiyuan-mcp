@@ -5,30 +5,17 @@ import { registerSearch } from "./builtin/search.js";
 import { registerReadTopic } from "./builtin/read_topic.js";
 import { registerReadPost } from "./builtin/read_post.js";
 import { registerGetUser } from "./builtin/get_user.js";
-import { registerCreatePost } from "./builtin/create_post.js";
-import { registerCreateCategory } from "./builtin/create_category.js";
-import { registerCreateTopic } from "./builtin/create_topic.js";
-import { registerUpdateTopic } from "./builtin/update_topic.js";
-import { registerUpdatePost } from "./builtin/update_post.js";
 import { registerSelectSite } from "./builtin/select_site.js";
 import { registerFilterTopics } from "./builtin/filter_topics.js";
-import { registerCreateUser } from "./builtin/create_user.js";
 import { registerListUserPosts } from "./builtin/list_user_posts.js";
 import { registerListUsers } from "./builtin/list_users.js";
-import { registerUpdateUser } from "./builtin/update_user.js";
-import { registerUploadFile } from "./builtin/upload_file.js";
 import { registerGetChatMessages } from "./builtin/get_chat_messages.js";
 import {
   registerGetDraft,
-  registerSaveDraft,
-  registerDeleteDraft,
 } from "./builtin/drafts.js";
 import {
   registerGetQuery,
   registerRunQuery,
-  registerCreateQuery,
-  registerUpdateQuery,
-  registerDeleteQuery,
 } from "./builtin/data_explorer/index.js";
 
 // Note: The following tools have been replaced by MCP Resources (v0.2.0):
@@ -37,6 +24,10 @@ import {
 // - discourse_list_chat_channels → discourse://chat/channels
 // - discourse_list_user_chat_channels → discourse://user/chat-channels
 // - discourse_list_drafts → discourse://user/drafts
+
+// Note: Write tools (create/update post/topic/category, user management,
+// upload, draft save/delete, Data Explorer query mutations) were removed
+// in v0.3.0. This server is read-only by design.
 
 export type ToolsMode = "auto" | "discourse_api_only" | "tool_exec_api";
 
@@ -78,23 +69,8 @@ export async function registerAllTools(
   registerListUsers(server, ctx, { allowWrites: false, showEmails: opts.showEmails });
   registerGetChatMessages(server, ctx, { allowWrites: false });
   registerGetDraft(server, ctx, { allowWrites: false });
-  
-  // Write tools (state mutations)
-  registerCreatePost(server, ctx, { allowWrites: opts.allowWrites });
-  registerCreateUser(server, ctx, { allowWrites: opts.allowWrites });
-  registerCreateCategory(server, ctx, { allowWrites: opts.allowWrites });
-  registerCreateTopic(server, ctx, { allowWrites: opts.allowWrites });
-  registerUpdateTopic(server, ctx, { allowWrites: opts.allowWrites });
-  registerUpdatePost(server, ctx, { allowWrites: opts.allowWrites });
-  registerUpdateUser(server, ctx, { allowWrites: opts.allowWrites });
-  registerUploadFile(server, ctx, { allowWrites: opts.allowWrites });
-  registerSaveDraft(server, ctx, { allowWrites: opts.allowWrites });
-  registerDeleteDraft(server, ctx, { allowWrites: opts.allowWrites });
 
-  // Data Explorer tools (admin access checked at call time)
+  // Data Explorer tools (read-only; admin access checked at call time)
   registerGetQuery(server, ctx, { allowWrites: false });
   registerRunQuery(server, ctx, { allowWrites: false });
-  registerCreateQuery(server, ctx, { allowWrites: opts.allowWrites });
-  registerUpdateQuery(server, ctx, { allowWrites: opts.allowWrites });
-  registerDeleteQuery(server, ctx, { allowWrites: opts.allowWrites });
 }

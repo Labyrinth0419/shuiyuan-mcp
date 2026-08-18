@@ -31,23 +31,7 @@ test('registers built-in tools', async () => {
   const logger = new Logger('silent');
   const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
 
-  test('registers write-enabled tools when allowWrites=true', async () => {
-    const logger = new Logger('silent');
-    const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
-
-    const { server, tools } = createMockServer();
-
-    await registerAllTools(server, siteState, logger, { allowWrites: true, toolsMode: 'discourse_api_only' } satisfies RegistryOptions);
-
-    // When writes are enabled, create and update tools should be registered
-    assert.ok('discourse_create_post' in tools);
-    assert.ok('discourse_create_category' in tools);
-    assert.ok('discourse_create_topic' in tools);
-    assert.ok('discourse_update_topic' in tools);
-    assert.ok('discourse_update_user' in tools);
-  });
-
-  test('does not register write tools when allowWrites=false', async () => {
+  test('registers read tools regardless of allowWrites', async () => {
     const logger = new Logger('silent');
     const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
 
@@ -55,13 +39,7 @@ test('registers built-in tools', async () => {
 
     await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only' } satisfies RegistryOptions);
 
-    // Write tools should NOT be registered
-    assert.ok(!('discourse_create_post' in tools));
-    assert.ok(!('discourse_create_topic' in tools));
-    assert.ok(!('discourse_update_topic' in tools));
-    assert.ok(!('discourse_update_user' in tools));
-
-    // Read tools should still be registered
+    // Read tools should be registered
     assert.ok('discourse_search' in tools);
     assert.ok('discourse_read_topic' in tools);
   });
@@ -317,320 +295,6 @@ test('read_topic keeps structured mode when explicitly requested', async () => {
   }
 });
 
-test('write tools return preview by default and only send after confirmation', { concurrency: false }, async () => {
-  const logger = new Logger('silent');
-  const siteState = new SiteState({
-    logger,
-    timeoutMs: 5000,
-    defaultAuth: { type: 'cookie', cookie: '_t=test-session' },
-  });
-  const { server, tools } = createMockServer();
-
-  siteState.selectSite('https://example.com');
-  await registerAllTools(server, siteState, logger, { allowWrites: true, toolsMode: 'discourse_api_only', hideSelectSite: true });
-
-  const calls: string[] = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (input: RequestInfo | URL, _init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input.toString();
-    calls.push(url);
-    if (url.endsWith('/session/csrf.json')) {
-      return new Response(JSON.stringify({ csrf: 'csrf-token' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    if (url.endsWith('/posts.json')) {
-      return new Response(JSON.stringify({ id: 11, topic_id: 99, post_number: 3 }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    return new Response('not found', { status: 404 });
-  }) as any;
-
-  try {
-    const previewRes = await tools['discourse_create_post'].handler({ topic_id: 99, raw: 'preview me' }, {});
-    const previewJson = JSON.parse(String(previewRes.content?.[0]?.text || '{}'));
-
-    assert.equal(previewJson.preview, true);
-    assert.equal(previewJson.operation, 'discourse_create_post');
-    assert.equal(typeof previewJson.preview_token, 'string');
-    assert.equal(calls.length, 0);
-
-    const sendRes = await tools['discourse_create_post'].handler({
-      topic_id: 99,
-      raw: 'preview me',
-      confirm_send: true,
-      preview_token: previewJson.preview_token,
-    }, {});
-    const sendJson = JSON.parse(String(sendRes.content?.[0]?.text || '{}'));
-
-    assert.equal(sendJson.preview_confirmed, true);
-    assert.equal(sendJson.topic_id, 99);
-    assert.ok(calls.some(url => url.endsWith('/posts.json')));
-  } finally {
-    globalThis.fetch = originalFetch as any;
-  }
-});
-
-test('write confirmation token rejects changed payload', { concurrency: false }, async () => {
-  const logger = new Logger('silent');
-  const siteState = new SiteState({
-    logger,
-    timeoutMs: 5000,
-    defaultAuth: { type: 'cookie', cookie: '_t=test-session' },
-  });
-  const { server, tools } = createMockServer();
-
-  siteState.selectSite('https://example.com');
-  await registerAllTools(server, siteState, logger, { allowWrites: true, toolsMode: 'discourse_api_only', hideSelectSite: true });
-
-  const calls: string[] = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (input: RequestInfo | URL, _init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input.toString();
-    calls.push(url);
-    if (url.endsWith('/posts.json')) {
-      return new Response(JSON.stringify({ id: 22, topic_id: 5, post_number: 1 }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    return new Response('not found', { status: 404 });
-  }) as any;
-
-  try {
-    const previewRes = await tools['discourse_create_post'].handler({ topic_id: 5, raw: 'v1 content' }, {});
-    const previewJson = JSON.parse(String(previewRes.content?.[0]?.text || '{}'));
-
-    const rejected = await tools['discourse_create_post'].handler({
-      topic_id: 5,
-      raw: 'v2 changed',
-      confirm_send: true,
-      preview_token: previewJson.preview_token,
-    }, {});
-    const rejectedJson = JSON.parse(String(rejected.content?.[0]?.text || '{}'));
-
-    assert.equal(rejected.isError, true);
-    assert.match(String(rejectedJson.error || ''), /changed since preview/i);
-    assert.equal(calls.length, 0);
-  } finally {
-    globalThis.fetch = originalFetch as any;
-  }
-});
-
-test('draft save returns preview by default and only sends after confirmation', { concurrency: false }, async () => {
-  const logger = new Logger('silent');
-  const siteState = new SiteState({
-    logger,
-    timeoutMs: 5000,
-    defaultAuth: { type: 'cookie', cookie: '_t=test-session' },
-  });
-  const { server, tools } = createMockServer();
-
-  siteState.selectSite('https://example.com');
-  await registerAllTools(server, siteState, logger, { allowWrites: true, toolsMode: 'discourse_api_only', hideSelectSite: true });
-
-  const calls: string[] = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (input: RequestInfo | URL, _init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input.toString();
-    calls.push(url);
-    if (url.endsWith('/session/csrf.json')) {
-      return new Response(JSON.stringify({ csrf: 'csrf-token' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    if (url.endsWith('/drafts.json')) {
-      return new Response(JSON.stringify({ draft_sequence: 7 }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    return new Response('not found', { status: 404 });
-  }) as any;
-
-  try {
-    const previewRes = await tools['discourse_save_draft'].handler({
-      draft_key: 'topic_123',
-      reply: 'draft preview text',
-      sequence: 0,
-    }, {});
-    const previewJson = JSON.parse(String(previewRes.content?.[0]?.text || '{}'));
-
-    assert.equal(previewJson.preview, true);
-    assert.equal(previewJson.operation, 'discourse_save_draft');
-    assert.equal(typeof previewJson.preview_token, 'string');
-    assert.equal(calls.length, 0);
-
-    const sendRes = await tools['discourse_save_draft'].handler({
-      draft_key: 'topic_123',
-      reply: 'draft preview text',
-      sequence: 0,
-      confirm_send: true,
-      preview_token: previewJson.preview_token,
-    }, {});
-    const sendJson = JSON.parse(String(sendRes.content?.[0]?.text || '{}'));
-
-    assert.equal(sendJson.saved, true);
-    assert.equal(sendJson.preview_confirmed, true);
-    assert.ok(calls.some(url => url.endsWith('/drafts.json')));
-  } finally {
-    globalThis.fetch = originalFetch as any;
-  }
-});
-
-test('upload requires matching preview payload before send', { concurrency: false }, async () => {
-  const logger = new Logger('silent');
-  const siteState = new SiteState({
-    logger,
-    timeoutMs: 5000,
-    defaultAuth: { type: 'cookie', cookie: '_t=test-session' },
-  });
-  const { server, tools } = createMockServer();
-
-  siteState.selectSite('https://example.com');
-  await registerAllTools(server, siteState, logger, { allowWrites: true, toolsMode: 'discourse_api_only', hideSelectSite: true });
-
-  const calls: string[] = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (input: RequestInfo | URL, _init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input.toString();
-    calls.push(url);
-    if (url.endsWith('/session/csrf.json')) {
-      return new Response(JSON.stringify({ csrf: 'csrf-token' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    if (url.endsWith('/uploads.json')) {
-      return new Response(JSON.stringify({
-        id: 101,
-        url: '/uploads/default/original/1x/test.png',
-        short_url: 'upload://abc.png',
-        short_path: '/uploads/short-path',
-        original_filename: 'test.png',
-        extension: 'png',
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    return new Response('not found', { status: 404 });
-  }) as any;
-
-  try {
-    const previewRes = await tools['discourse_upload_file'].handler({
-      upload_type: 'composer',
-      filename: 'test.png',
-      image_data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB',
-    }, {});
-    const previewJson = JSON.parse(String(previewRes.content?.[0]?.text || '{}'));
-
-    assert.equal(previewJson.preview, true);
-    assert.equal(previewJson.operation, 'discourse_upload_file');
-    assert.equal(typeof previewJson.preview_token, 'string');
-    assert.equal(calls.length, 0);
-
-    const rejected = await tools['discourse_upload_file'].handler({
-      upload_type: 'composer',
-      filename: 'test.png',
-      image_data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAAC',
-      confirm_send: true,
-      preview_token: previewJson.preview_token,
-    }, {});
-    const rejectedJson = JSON.parse(String(rejected.content?.[0]?.text || '{}'));
-    assert.equal(rejected.isError, true);
-    assert.match(String(rejectedJson.error || ''), /changed since preview/i);
-    assert.equal(calls.length, 0);
-
-    const sendRes = await tools['discourse_upload_file'].handler({
-      upload_type: 'composer',
-      filename: 'test.png',
-      image_data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB',
-      confirm_send: true,
-      preview_token: previewJson.preview_token,
-    }, {});
-    const sendJson = JSON.parse(String(sendRes.content?.[0]?.text || '{}'));
-
-    assert.equal(sendJson.id, 101);
-    assert.equal(sendJson.preview_confirmed, true);
-    assert.ok(calls.some(url => url.endsWith('/uploads.json')));
-  } finally {
-    globalThis.fetch = originalFetch as any;
-  }
-});
-
-test('create_user preview redacts password and sends only after confirmation', { concurrency: false }, async () => {
-  const logger = new Logger('silent');
-  const siteState = new SiteState({
-    logger,
-    timeoutMs: 5000,
-    defaultAuth: { type: 'cookie', cookie: '_t=test-session' },
-  });
-  const { server, tools } = createMockServer();
-
-  siteState.selectSite('https://example.com');
-  await registerAllTools(server, siteState, logger, { allowWrites: true, toolsMode: 'discourse_api_only', hideSelectSite: true });
-
-  const calls: string[] = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (input: RequestInfo | URL, _init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input.toString();
-    calls.push(url);
-    if (url.endsWith('/session/csrf.json')) {
-      return new Response(JSON.stringify({ csrf: 'csrf-token' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    if (url.endsWith('/users.json')) {
-      return new Response(JSON.stringify({
-        success: true,
-        username: 'alice',
-        active: true,
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    return new Response('not found', { status: 404 });
-  }) as any;
-
-  try {
-    const previewRes = await tools['discourse_create_user'].handler({
-      username: 'alice',
-      email: 'alice@example.com',
-      name: 'Alice',
-      password: 'very-secure-pass',
-    }, {});
-    const previewJson = JSON.parse(String(previewRes.content?.[0]?.text || '{}'));
-
-    assert.equal(previewJson.preview, true);
-    assert.equal(previewJson.payload.password, '<redacted>');
-    assert.equal(previewJson.payload.password_length, 'very-secure-pass'.length);
-    assert.equal(calls.length, 0);
-
-    const sendRes = await tools['discourse_create_user'].handler({
-      username: 'alice',
-      email: 'alice@example.com',
-      name: 'Alice',
-      password: 'very-secure-pass',
-      confirm_send: true,
-      preview_token: previewJson.preview_token,
-    }, {});
-    const sendJson = JSON.parse(String(sendRes.content?.[0]?.text || '{}'));
-
-    assert.equal(sendJson.success, true);
-    assert.equal(sendJson.preview_confirmed, true);
-    assert.ok(calls.some(url => url.endsWith('/users.json')));
-  } finally {
-    globalThis.fetch = originalFetch as any;
-  }
-});
-
 // ========================
 // Tool registration tests - verify tools are exposed based on auth context
 // ========================
@@ -655,23 +319,7 @@ const ADMIN_READ_TOOLS = [
   'discourse_run_query',
 ];
 
-const WRITE_TOOLS = [
-  'discourse_create_post',
-  'discourse_create_user',
-  'discourse_create_category',
-  'discourse_create_topic',
-  'discourse_update_topic',
-  'discourse_update_post',
-  'discourse_update_user',
-  'discourse_upload_file',
-  'discourse_save_draft',
-  'discourse_delete_draft',
-  'discourse_create_query',
-  'discourse_update_query',
-  'discourse_delete_query',
-];
-
-test('read-only mode registers read + admin-read tools (access checked at call time)', async () => {
+test('read-only server registers read + admin-read tools (access checked at call time)', async () => {
   const logger = new Logger('silent');
   const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
   const { server, tools } = createMockServer();
@@ -686,19 +334,24 @@ test('read-only mode registers read + admin-read tools (access checked at call t
   assert.deepEqual(registeredTools, expectedTools);
 });
 
-test('write mode registers all tools', async () => {
+test('write tools are never registered (read-only server)', async () => {
   const logger = new Logger('silent');
   const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
   const { server, tools } = createMockServer();
 
+  // Even with allowWrites=true, no write tools exist anymore
   await registerAllTools(server, siteState, logger, {
     allowWrites: true,
     toolsMode: 'discourse_api_only'
   });
 
-  const registeredTools = Object.keys(tools).sort();
-  const expectedTools = [...READ_ONLY_TOOLS, ...ADMIN_READ_TOOLS, ...WRITE_TOOLS].sort();
-  assert.deepEqual(registeredTools, expectedTools);
+  const registeredTools = Object.keys(tools);
+  for (const name of registeredTools) {
+    assert.ok(!name.includes('create_'));
+    assert.ok(!name.includes('update_'));
+    assert.ok(!name.includes('delete_'));
+    assert.ok(!name.includes('upload'));
+  }
 });
 
 test('tethered mode hides select_site from tool list', async () => {

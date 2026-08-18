@@ -11,8 +11,7 @@ Shuiyuan MCP 是一个面向 [水源社区](https://shuiyuan.sjtu.edu.cn/) 的 M
 - 通过 MCP 工具搜索、读取水源帖子、读取用户信息、查看草稿和聊天频道等。
 - 支持水源 SSO 场景下的 cookie 登录，不需要把 jAccount 密码交给 MCP。
 - 也支持水源 User API Key 登录（可选）：不需要 jAccount 密码，授予后仅凭 key 访问 API。
-- 默认只读启动，避免 AI 意外发帖。
-- 可选择开启写入工具，用于发帖、回复、保存草稿、上传图片等。
+- **纯只读**：本分支已移除所有发帖、编辑和修改用户资料的写工具。
 - 提供 Windows 脚本和可构建的 `.exe` 启动器。
 
 ## 环境要求
@@ -87,7 +86,7 @@ node .\dist\shuiyuan-api-key-login.js
 .\scripts\shuiyuan-mcp.ps1
 ```
 
-这个命令会以 stdio transport 启动 MCP，适合配置到 Claude Desktop、Cursor、Codex 等 MCP 客户端。水源专用启动入口默认开启写入工具，相当于自动附加 `--allow_writes --read_only=false`。
+这个命令会以 stdio transport 启动 MCP，适合配置到 Claude Desktop、Cursor、Codex 等 MCP 客户端。本分支是纯只读服务器：所有发帖、编辑、用户资料修改等写工具都已移除。
 
 如果你想临时用 HTTP transport 调试：
 
@@ -150,7 +149,6 @@ http://localhost:3765/mcp
 ```text
 在水源搜索“选课 经验”，总结前 5 个相关主题。
 读取 topic_id 为 12345 的帖子，并总结主要讨论。
-帮我草拟一条回复，但先不要发布。
 查看我在水源的草稿列表。
 ```
 
@@ -162,28 +160,6 @@ http://localhost:3765/mcp
 - `discourse_get_user`
 - `discourse_list_user_posts`
 - `discourse_get_draft`
-- `discourse_save_draft`
-- `discourse_create_post`
-- `discourse_create_topic`
-
-## 写入权限
-
-默认配置是只读：
-
-```json
-{
-  "read_only": true,
-  "allow_writes": false
-}
-```
-
-水源专用启动入口默认开启写入工具，可以发帖、回复、保存草稿或上传文件：
-
-```powershell
-.\scripts\shuiyuan-mcp.ps1
-```
-
-建议先让 AI 草拟内容，再由你确认发布。写入操作会受到你的水源账号权限限制。
 
 ## 构建 Windows 启动器
 
@@ -202,7 +178,8 @@ dist-win\
 生成的入口：
 
 - `dist-win\shuiyuan-mcp-login.exe`：首次使用，打开窗口登录并保存 cookie。
-- `dist-win\shuiyuan-mcp.exe`：日常使用，复用已保存 cookie 启动 MCP，默认开启写入工具。
+- `dist-win\shuiyuan-mcp-api-key-login.exe`：首次使用，生成 User API Key 并保存 profile。
+- `dist-win\shuiyuan-mcp.exe`：日常使用，复用已保存 profile 启动只读 MCP。
 
 如果希望生成自包含 exe：
 
@@ -219,7 +196,7 @@ skills/shuiyuan-mcp/
 skills/deepsearch/
 ```
 
-`shuiyuan-mcp` 会指导 Codex 使用 `mcp__shuiyuan__` 工具完成水源搜索、读帖、发帖、修正中文编码、选择分类等流程。`deepsearch` 会在你说出关键词 `deepsearch` 或要求深度研究时，指导 Codex 做多轮检索、交叉验证和证据综合。要安装到本机 Codex skills 目录，可以复制：
+`shuiyuan-mcp` 会指导 Codex 使用 `mcp__shuiyuan__` 工具完成水源搜索、读帖、修正中文编码等只读流程。`deepsearch` 会在你说出关键词 `deepsearch` 或要求深度研究时，指导 Codex 做多轮检索、交叉验证和证据综合。要安装到本机 Codex skills 目录，可以复制：
 
 ```powershell
 Copy-Item .\skills\shuiyuan-mcp "$env:USERPROFILE\.codex\skills\shuiyuan-mcp" -Recurse -Force
@@ -275,7 +252,6 @@ Copy-Item .\skills\deepsearch "$env:USERPROFILE\.codex\skills\deepsearch" -Recur
 - `cookies.json` / `user_api_key` 等同于你的登录态，请像密码一样保管。
 - 不要把 `%APPDATA%\shuiyuan-mcp\cookies.json` 上传到公开仓库。
 - 公共仓库里只应该包含源码、脚本和文档，不应该包含真实 profile/cookie。
-- 开启写入前确认 MCP 客户端和提示词可信。
 
 ## 开发命令
 

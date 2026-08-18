@@ -44,39 +44,9 @@ Key tables you may find useful:
 Use the \`discourse://explorer/queries\` resource to see if a similar query already exists.
 This can save time and provide examples of working queries.
 
-## Step 3: Write or Modify Query
-- Use \`discourse_create_query\` to save a new query, or
-- Use \`discourse_get_query\` to fetch an existing query's SQL for modification
-
-### Query Parameter Syntax
-Declare parameters in SQL comments at the top of your query:
-
-\`\`\`sql
--- [params]
--- int :user_id
--- string :username = 'default_value'
--- null date :start_date
-
-SELECT * FROM users WHERE id = :user_id
-\`\`\`
-
-### Supported Parameter Types
-- **int** - Integer value
-- **bigint** - Large integer
-- **string** - Text value
-- **boolean** - true/false
-- **date** - Date (YYYY-MM-DD)
-- **datetime** - Date and time
-- **user_id** - User ID with autocomplete
-- **post_id** - Post ID
-- **topic_id** - Topic ID
-- **category_id** - Category ID with autocomplete
-- **group_id** - Group ID with autocomplete
-- **badge_id** - Badge ID with autocomplete
-- **int_list** - Comma-separated integers
-- **string_list** - Comma-separated strings
-
-Prefix with \`null\` to make a parameter optional: \`-- null int :optional_id\`
+## Step 3: Check Existing Queries
+Use the \`discourse://explorer/queries\` resource to see if a similar query already exists.
+This can save time and provide examples of working queries.
 
 ## Step 4: Run Query
 Use \`discourse_run_query\` with the query ID and any required parameters.

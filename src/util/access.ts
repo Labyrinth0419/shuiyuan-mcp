@@ -23,13 +23,6 @@ function requireSiteAuth(siteState: SiteState, requirement: AuthRequirement) {
   return null;
 }
 
-export function requireWriteAccess(siteState: SiteState, allowWrites: boolean) {
-  if (!allowWrites) {
-    return jsonError("Writes are disabled. Run with --allow_writes --read_only=false to enable.");
-  }
-  return requireSiteAuth(siteState, "any");
-}
-
 export function requireAdminAccess(siteState: SiteState) {
   return requireSiteAuth(siteState, "admin");
 }
