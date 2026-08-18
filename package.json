@@ -51,15 +51,23 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "better-sqlite3": "^11.0.0",
     "playwright": "^1.60.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@types/better-sqlite3": "^7.6.0",
     "@types/node": "^20.14.10",
     "eslint": "^9.39.2",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.53.1"
   },
-  "packageManager": "pnpm@10.14.0"
+  "optionalDependencies": {
+    "@node-rs/jieba": "^2.0.0"
+  },
+  "packageManager": "pnpm@10.14.0",
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3"]
+  }
 }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { RegisterFn } from "../types.js";
 import { jsonResponse, jsonError } from "../../util/json_response.js";
+import { getCacheManager } from "../../cache/index.js";
 
 export const registerReadTopic: RegisterFn = (server, ctx) => {
   const RAW_POSTS_PER_PAGE = 100;
@@ -11,18 +12,65 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
     topic_id: z.number().int().positive(),
     post_limit: z.number().int().min(1).max(50).optional().describe("Max posts to return (default 5, max 50)"),
     start_post_number: z.number().int().min(1).optional().describe("Start from this post number (1-based)"),
-    format: z.enum(["auto", "structured", "raw"]).optional().describe("Read format. structured returns per-post JSON; raw uses /raw pages to reduce requests for larger reads.")
+    format: z.enum(["auto", "structured", "raw"]).optional().describe("Read format. structured returns per-post JSON; raw uses /raw pages to reduce requests for larger reads."),
+    cache: z
+      .enum(["false", "true"])
+      .optional()
+      .default("false")
+      .describe("Cache mode: false=live read (default, auto-populates cache), true=read from local cache only (offline)")
   });
 
   server.registerTool(
     "shuiyuan_read_topic",
     {
       title: "Read Topic",
-      description: "Read topic metadata and posts. Returns structured per-post JSON for small reads, or raw page text for larger reads to reduce requests.",
+      description: "Read topic metadata and posts. Supports cached/offline reads via local SQLite index. Live reads auto-populate the cache.",
       inputSchema: schema.shape,
     },
-    async ({ topic_id, post_limit = 5, start_post_number, format = "auto" }, _extra) => {
+    async ({ topic_id, post_limit = 5, start_post_number, format = "auto", cache = "false" }, _extra) => {
       try {
+        const cm = getCacheManager();
+
+        // Cache-only mode
+        if (cache === "true") {
+          const cached = cm.getTopic(topic_id);
+          if (!cached) {
+            return jsonResponse({
+              id: topic_id,
+              cached: false,
+              meta: { message: "Topic not in cache. Use cache='false' to fetch from server." },
+            });
+          }
+          const allPosts = cm.getPosts(topic_id);
+          const start = start_post_number ?? 1;
+          const posts = allPosts
+            .filter((p) => p.post_number >= start)
+            .slice(0, post_limit)
+            .map((p) => ({
+              id: p.topic_id,
+              post_number: p.post_number,
+              username: p.username,
+              created_at: p.created_at,
+              raw: p.raw,
+            }));
+          return jsonResponse({
+            id: topic_id,
+            title: cached.title,
+            slug: cached.slug,
+            category_id: cached.category_id,
+            tags: cached.tags,
+            posts_count: cached.posts_count,
+            posts,
+            meta: {
+              source: "cache",
+              start_post: start,
+              returned: posts.length,
+              has_more: cached.posts_count > start + posts.length - 1,
+            },
+          });
+        }
+
+        // Live read (default)
         const { client } = ctx.siteState.ensureSelectedSite();
         const start = start_post_number ?? 1;
         const strategy = format === "auto" && post_limit > STRUCTURED_AUTO_LIMIT ? "raw" : format === "auto" ? "structured" : format;
@@ -30,6 +78,10 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
 
         if (strategy === "raw") {
           const topicData = (await client.getCached(`/t/${topic_id}.json`, CACHE_TTL_MS)) as any;
+
+          // Cache the topic metadata
+          cm.upsertTopic(topicData);
+
           const postsCount = Number(topicData?.posts_count || 0);
           const startPage = Math.floor((start - 1) / RAW_POSTS_PER_PAGE) + 1;
           const requestedLastPost = start + post_limit - 1;
@@ -59,6 +111,7 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
             raw_pages: rawPages,
             meta: {
               strategy: "raw",
+              source: "live",
               start_post: start,
               requested_posts: post_limit,
               posts_per_raw_page: RAW_POSTS_PER_PAGE,
@@ -71,6 +124,7 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
           });
         }
 
+        // Structured read
         let current = start;
         const fetchedPosts: Array<{
           id: number;
@@ -91,6 +145,8 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
 
           if (i === 0) {
             topicData = data;
+            // Cache the topic metadata
+            cm.upsertTopic(data);
           }
 
           const stream: any[] = Array.isArray(data?.post_stream?.posts) ? data.post_stream.posts : [];
@@ -106,6 +162,8 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
               created_at: p.created_at,
               raw: (p.raw || p.cooked || p.excerpt || "").toString().slice(0, limit),
             });
+            // Cache each post
+            cm.insertPost(p, topic_id);
           }
 
           if (filtered.length === 0) break;
@@ -122,6 +180,7 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
           posts: fetchedPosts,
           meta: {
             strategy: "structured",
+            source: "live",
             start_post: start,
             returned: fetchedPosts.length,
             has_more: (topicData?.posts_count || 0) > (start + fetchedPosts.length - 1),
@@ -133,4 +192,3 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
     }
   );
 };
-
