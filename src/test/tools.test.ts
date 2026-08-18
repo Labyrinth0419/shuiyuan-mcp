@@ -40,8 +40,8 @@ test('registers built-in tools', async () => {
     await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only' } satisfies RegistryOptions);
 
     // Read tools should be registered
-    assert.ok('discourse_search' in tools);
-    assert.ok('discourse_read_topic' in tools);
+    assert.ok('shuiyuan_search' in tools);
+    assert.ok('shuiyuan_read_topic' in tools);
   });
 
   const server = new McpServer({ name: 'test', version: '0.0.0' }, { capabilities: { tools: { listChanged: false } } });
@@ -98,11 +98,11 @@ test('select-site then search flow works with mocked HTTP', async () => {
 
   try {
     // Select site
-    const selectRes = await tools['discourse_select_site'].handler({ site: 'https://example.com' }, {});
+    const selectRes = await tools['shuiyuan_select_site'].handler({ site: 'https://example.com' }, {});
     assert.equal(selectRes?.isError, undefined);
 
     // Search - now returns JSON-only (v0.2.0)
-    const searchRes = await tools['discourse_search'].handler({ query: 'hello' }, {});
+    const searchRes = await tools['shuiyuan_search'].handler({ query: 'hello' }, {});
     const text = String(searchRes?.content?.[0]?.text || '');
     const json = JSON.parse(text);
     assert.ok(json.results);
@@ -142,10 +142,10 @@ test('tethered mode hides select_site and allows search without selection', asyn
     await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only', hideSelectSite: true } satisfies RegistryOptions);
 
     // Ensure select tool is not exposed
-    assert.ok(!('discourse_select_site' in tools));
+    assert.ok(!('shuiyuan_select_site' in tools));
 
     // Search should work without calling select first - now returns JSON-only (v0.2.0)
-    const searchRes = await tools['discourse_search'].handler({ query: 'hello' }, {});
+    const searchRes = await tools['shuiyuan_search'].handler({ query: 'hello' }, {});
     const text = String(searchRes?.content?.[0]?.text || '');
     const json = JSON.parse(text);
     assert.ok(json.results);
@@ -183,7 +183,7 @@ test('default-search prefix is applied to queries', async () => {
 
     await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only', defaultSearchPrefix: 'tag:ai order:latest' } satisfies RegistryOptions);
 
-    await tools['discourse_search'].handler({ query: 'hello world' }, {});
+    await tools['shuiyuan_search'].handler({ query: 'hello world' }, {});
     assert.ok(lastUrl && lastUrl.includes('/search.json?'));
     const qs = lastUrl!.split('?')[1] || '';
     const params = new URLSearchParams(qs);
@@ -226,7 +226,7 @@ test('read_topic uses raw pages for larger auto reads', async () => {
 
     await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only', hideSelectSite: true });
 
-    const result = await tools['discourse_read_topic'].handler({ topic_id: 123, post_limit: 50 }, {});
+    const result = await tools['shuiyuan_read_topic'].handler({ topic_id: 123, post_limit: 50 }, {});
     const json = JSON.parse(String(result.content?.[0]?.text || '{}'));
 
     assert.equal(json.meta.strategy, 'raw');
@@ -284,7 +284,7 @@ test('read_topic keeps structured mode when explicitly requested', async () => {
 
     await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only', hideSelectSite: true });
 
-    const result = await tools['discourse_read_topic'].handler({ topic_id: 123, post_limit: 50, format: 'structured' }, {});
+    const result = await tools['shuiyuan_read_topic'].handler({ topic_id: 123, post_limit: 50, format: 'structured' }, {});
     const json = JSON.parse(String(result.content?.[0]?.text || '{}'));
 
     assert.equal(json.meta.strategy, 'structured');
@@ -301,22 +301,22 @@ test('read_topic keeps structured mode when explicitly requested', async () => {
 
 // Define expected tool sets for each context
 const READ_ONLY_TOOLS = [
-  'discourse_select_site',
-  'discourse_search',
-  'discourse_filter_topics',
-  'discourse_read_topic',
-  'discourse_read_post',
-  'discourse_get_user',
-  'discourse_list_user_posts',
-  'discourse_get_chat_messages',
-  'discourse_get_draft',
+  'shuiyuan_select_site',
+  'shuiyuan_search',
+  'shuiyuan_filter_topics',
+  'shuiyuan_read_topic',
+  'shuiyuan_read_post',
+  'shuiyuan_get_user',
+  'shuiyuan_list_user_posts',
+  'shuiyuan_get_chat_messages',
+  'shuiyuan_get_draft',
 ];
 
 // Admin-only tools are now always registered; access is checked at call time
 const ADMIN_READ_TOOLS = [
-  'discourse_list_users',
-  'discourse_get_query',
-  'discourse_run_query',
+  'shuiyuan_list_users',
+  'shuiyuan_get_query',
+  'shuiyuan_run_query',
 ];
 
 test('read-only server registers read + admin-read tools (access checked at call time)', async () => {
@@ -366,7 +366,7 @@ test('tethered mode hides select_site from tool list', async () => {
   });
 
   const registeredTools = Object.keys(tools).sort();
-  const expectedTools = [...READ_ONLY_TOOLS, ...ADMIN_READ_TOOLS].filter(t => t !== 'discourse_select_site').sort();
+  const expectedTools = [...READ_ONLY_TOOLS, ...ADMIN_READ_TOOLS].filter(t => t !== 'shuiyuan_select_site').sort();
   assert.deepEqual(registeredTools, expectedTools);
 });
 

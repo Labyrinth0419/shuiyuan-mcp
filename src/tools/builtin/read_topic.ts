@@ -15,7 +15,7 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
   });
 
   server.registerTool(
-    "discourse_read_topic",
+    "shuiyuan_read_topic",
     {
       title: "Read Topic",
       description: "Read topic metadata and posts. Returns structured per-post JSON for small reads, or raw page text for larger reads to reduce requests.",

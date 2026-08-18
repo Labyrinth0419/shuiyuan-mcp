@@ -24,7 +24,7 @@ export class HttpError extends Error {
 
 export class HttpClient {
   private base: URL;
-  private userAgent = "Discourse-MCP/0.x (+https://github.com/discourse/discourse-mcp)";
+  private userAgent = "Shuiyuan-MCP/0.x (+https://github.com/Labyrinth0419/shuiyuan-mcp)";
   private cache = new Map<string, { value: any; expiresAt: number }>();
   private csrfToken?: string;
 

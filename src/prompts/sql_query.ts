@@ -26,7 +26,7 @@ export function getSqlQueryPromptContent(args: SqlQueryPromptArgs): string {
 Goal: ${goal}
 
 ## Step 1: Discover Schema
-Use the \`discourse://explorer/schema\` resource to explore available tables and columns.
+Use the \`shuiyuan://explorer/schema\` resource to explore available tables and columns.
 
 Key tables you may find useful:
 - **users** - User accounts (id, username, name, email, trust_level, created_at, last_seen_at)
@@ -41,15 +41,15 @@ Key tables you may find useful:
 - **group_users** - Group membership
 
 ## Step 2: Check Existing Queries
-Use the \`discourse://explorer/queries\` resource to see if a similar query already exists.
+Use the \`shuiyuan://explorer/queries\` resource to see if a similar query already exists.
 This can save time and provide examples of working queries.
 
 ## Step 3: Check Existing Queries
-Use the \`discourse://explorer/queries\` resource to see if a similar query already exists.
+Use the \`shuiyuan://explorer/queries\` resource to see if a similar query already exists.
 This can save time and provide examples of working queries.
 
 ## Step 4: Run Query
-Use \`discourse_run_query\` with the query ID and any required parameters.
+Use \`shuiyuan_run_query\` with the query ID and any required parameters.
 
 Example:
 \`\`\`json

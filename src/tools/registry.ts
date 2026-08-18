@@ -19,11 +19,11 @@ import {
 } from "./builtin/data_explorer/index.js";
 
 // Note: The following tools have been replaced by MCP Resources (v0.2.0):
-// - discourse_list_categories → discourse://site/categories
-// - discourse_list_tags → discourse://site/tags
-// - discourse_list_chat_channels → discourse://chat/channels
-// - discourse_list_user_chat_channels → discourse://user/chat-channels
-// - discourse_list_drafts → discourse://user/drafts
+// - shuiyuan_list_categories → shuiyuan://site/categories
+// - shuiyuan_list_tags → shuiyuan://site/tags
+// - shuiyuan_list_chat_channels → shuiyuan://chat/channels
+// - shuiyuan_list_user_chat_channels → shuiyuan://user/chat-channels
+// - shuiyuan_list_drafts → shuiyuan://user/drafts
 
 // Note: Write tools (create/update post/topic/category, user management,
 // upload, draft save/delete, Data Explorer query mutations) were removed
@@ -34,7 +34,7 @@ export type ToolsMode = "auto" | "discourse_api_only" | "tool_exec_api";
 export interface RegistryOptions {
   allowWrites: boolean;
   toolsMode: ToolsMode;
-  // When true, do not register the discourse_select_site tool
+  // When true, do not register the shuiyuan_select_site tool
   hideSelectSite?: boolean;
   // Optional default search prefix to add to all searches
   defaultSearchPrefix?: string;

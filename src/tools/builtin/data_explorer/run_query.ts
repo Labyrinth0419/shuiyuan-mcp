@@ -29,7 +29,7 @@ export const registerRunQuery: RegisterFn = (server, ctx, _opts) => {
   });
 
   server.registerTool(
-    "discourse_run_query",
+    "shuiyuan_run_query",
     {
       title: "Run Data Explorer Query",
       description:

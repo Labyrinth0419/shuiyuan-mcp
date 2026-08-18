@@ -10,7 +10,7 @@ export const registerListUserPosts: RegisterFn = (server, ctx) => {
   });
 
   server.registerTool(
-    "discourse_list_user_posts",
+    "shuiyuan_list_user_posts",
     {
       title: "List User Posts",
       description: "Get paginated list of user posts/replies. Returns JSON object with posts array (id, topic_id, post_number, slug, title, created_at, excerpt, category_id) and meta (page, limit, has_more).",

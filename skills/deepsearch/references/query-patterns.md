@@ -50,7 +50,7 @@ Do not keep repeating broad queries after pass 1. Use each result to sharpen the
 - For news: multiple reputable outlets plus original announcement, court filing, company post, or regulator page.
 - For academic claims: paper, dataset, replication, errata, author pages.
 - For communities such as Shuiyuan: read the original topic and nearby replies before summarizing.
-- For Shuiyuan deepsearch: search/filter first, then use raw `discourse_read_topic` for long-thread synthesis and structured reads only for citation precision.
+- For Shuiyuan deepsearch: search/filter first, then use raw `shuiyuan_read_topic` for long-thread synthesis and structured reads only for citation precision.
 
 ## Contradiction Search
 

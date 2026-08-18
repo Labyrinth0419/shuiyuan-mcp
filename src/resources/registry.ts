@@ -2,7 +2,7 @@
  * MCP Resource Registry
  * 
  * Registers URI-addressable resources for static/semi-static read-only data.
- * Resources use the discourse:// custom URI scheme.
+ * Resources use the shuiyuan:// custom URI scheme.
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -57,13 +57,13 @@ export function registerAllResources(
 }
 
 /**
- * discourse://site/categories
+ * shuiyuan://site/categories
  * Lists all categories with hierarchy and permissions.
  */
 function registerCategoriesResource(server: ResourceRegistrar, ctx: ResourceContext): void {
   server.resource(
     "site_categories",
-    "discourse://site/categories",
+    "shuiyuan://site/categories",
     { description: "List all categories with hierarchy (pid), permissions (perms), and counts. Use for migration workflows." },
     async (uri) => {
       const { client } = ctx.siteState.ensureSelectedSite();
@@ -109,13 +109,13 @@ function registerCategoriesResource(server: ResourceRegistrar, ctx: ResourceCont
 }
 
 /**
- * discourse://site/tags
+ * shuiyuan://site/tags
  * Lists all tags with usage counts.
  */
 function registerTagsResource(server: ResourceRegistrar, ctx: ResourceContext): void {
   server.resource(
     "site_tags",
-    "discourse://site/tags",
+    "shuiyuan://site/tags",
     { description: "List all tags with usage counts. Returns empty if tags are disabled." },
     async (uri) => {
       const { client } = ctx.siteState.ensureSelectedSite();
@@ -157,13 +157,13 @@ function registerTagsResource(server: ResourceRegistrar, ctx: ResourceContext): 
 }
 
 /**
- * discourse://site/groups
+ * shuiyuan://site/groups
  * Lists all groups for gid -> name resolution.
  */
 function registerGroupsResource(server: ResourceRegistrar, ctx: ResourceContext): void {
   server.resource(
     "site_groups",
-    "discourse://site/groups",
+    "shuiyuan://site/groups",
     { description: "List all groups with visibility, interaction levels, and access settings. Levels: 0=public, 1=logged_on_users, 2=members, 3=staff, 4=owners." },
     async (uri) => {
       const { client } = ctx.siteState.ensureSelectedSite();
@@ -205,13 +205,13 @@ function registerGroupsResource(server: ResourceRegistrar, ctx: ResourceContext)
 }
 
 /**
- * discourse://chat/channels
+ * shuiyuan://chat/channels
  * Lists all public chat channels.
  */
 function registerChatChannelsResource(server: ResourceRegistrar, ctx: ResourceContext): void {
   server.resource(
     "chat_channels",
-    "discourse://chat/channels",
+    "shuiyuan://chat/channels",
     { description: "List all public chat channels with id, title, slug, status, members_count, and description." },
     async (uri) => {
       const { client } = ctx.siteState.ensureSelectedSite();
@@ -253,13 +253,13 @@ function registerChatChannelsResource(server: ResourceRegistrar, ctx: ResourceCo
 }
 
 /**
- * discourse://user/chat-channels
+ * shuiyuan://user/chat-channels
  * Lists all chat channels for the authenticated user (public + DMs).
  */
 function registerUserChatChannelsResource(server: ResourceRegistrar, ctx: ResourceContext): void {
   server.resource(
     "user_chat_channels",
-    "discourse://user/chat-channels",
+    "shuiyuan://user/chat-channels",
     { description: "List user's chat channels (public + DMs) with unread/mention counts. Requires authentication." },
     async (uri) => {
       const { client } = ctx.siteState.ensureSelectedSite();
@@ -313,13 +313,13 @@ function registerUserChatChannelsResource(server: ResourceRegistrar, ctx: Resour
 }
 
 /**
- * discourse://user/drafts
+ * shuiyuan://user/drafts
  * Lists all drafts for the authenticated user.
  */
 function registerUserDraftsResource(server: ResourceRegistrar, ctx: ResourceContext): void {
   server.resource(
     "user_drafts",
-    "discourse://user/drafts",
+    "shuiyuan://user/drafts",
     { description: "List user's drafts with draft_key, sequence, title, category_id, created_at, and reply_preview. Requires authentication." },
     async (uri) => {
       const { client } = ctx.siteState.ensureSelectedSite();

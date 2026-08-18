@@ -15,11 +15,11 @@ async function main() {
 
   await registerAllTools(fakeServer, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only' });
 
-  const selectRes = await tools['discourse_select_site'].handler({ site: 'https://meta.discourse.org' }, {});
+  const selectRes = await tools['shuiyuan_select_site'].handler({ site: 'https://meta.discourse.org' }, {});
   if (selectRes?.isError) throw new Error('select_site failed');
 
   const filter = 'created-after:7 order:likes';
-  const res = await tools['discourse_filter_topics'].handler({ filter, page: 0, per_page: 5 }, {});
+  const res = await tools['shuiyuan_filter_topics'].handler({ filter, page: 0, per_page: 5 }, {});
   const text = String(res?.content?.[0]?.text || '');
   console.log(text);
 }

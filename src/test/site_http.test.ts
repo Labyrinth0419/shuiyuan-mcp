@@ -103,7 +103,7 @@ test('HttpClient getCached cache key preserves subfolder base path', async () =>
 });
 
 test('HttpClient cookie_file auth sends matching cookies', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'discourse-mcp-cookie-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'shuiyuan-mcp-cookie-'));
   const cookieFile = path.join(dir, 'cookies.json');
   await writeFile(cookieFile, JSON.stringify({
     cookies: [
@@ -183,10 +183,10 @@ test('select-site then search flow preserves subfolder base path', async () => {
   try {
     await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only' } satisfies RegistryOptions);
 
-    const selectRes = await tools['discourse_select_site'].handler({ site: 'https://example.com/forum' }, {});
+    const selectRes = await tools['shuiyuan_select_site'].handler({ site: 'https://example.com/forum' }, {});
     assert.equal(selectRes?.isError, undefined);
 
-    const searchRes = await tools['discourse_search'].handler({ query: 'hello' }, {});
+    const searchRes = await tools['shuiyuan_search'].handler({ query: 'hello' }, {});
     assert.equal(searchRes?.isError, undefined);
 
     assert.equal(calls[0], 'https://example.com/forum/about.json');
@@ -209,9 +209,9 @@ test('tethered validation then search preserves subfolder base path', async () =
     siteState.selectSite(base);
 
     await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only', hideSelectSite: true } satisfies RegistryOptions);
-    assert.ok(!('discourse_select_site' in tools));
+    assert.ok(!('shuiyuan_select_site' in tools));
 
-    const searchRes = await tools['discourse_search'].handler({ query: 'hello' }, {});
+    const searchRes = await tools['shuiyuan_search'].handler({ query: 'hello' }, {});
     assert.equal(searchRes?.isError, undefined);
 
     assert.equal(calls[0], 'https://example.com/forum/about.json');

@@ -250,8 +250,8 @@ async function fetchAndFormatSchema(
 
 /**
  * Registers schema resources:
- * - discourse://explorer/schema (static, returns core tables)
- * - discourse://explorer/schema/{tables} (template, for "all" or specific tables)
+ * - shuiyuan://explorer/schema (static, returns core tables)
+ * - shuiyuan://explorer/schema/{tables} (template, for "all" or specific tables)
  */
 export function registerExplorerSchemaResource(
   server: ResourceRegistrar,
@@ -260,7 +260,7 @@ export function registerExplorerSchemaResource(
   // Static resource for default (core tables)
   server.resource(
     "explorer_schema",
-    "discourse://explorer/schema",
+    "shuiyuan://explorer/schema",
     {
       description:
         "Database schema (core tables). Format: col, col:int, col:ts, col*, col>fk_table. No type = text. Use explorer_schema_tables for all/specific tables.",
@@ -270,7 +270,7 @@ export function registerExplorerSchemaResource(
 
   // Template resource for specific tables
   const template = new ResourceTemplate(
-    "discourse://explorer/schema/{tables}",
+    "shuiyuan://explorer/schema/{tables}",
     { list: undefined }
   );
 
@@ -359,7 +359,7 @@ async function fetchAndFormatQueries(
     // Header with pagination info
     let header = `-- Queries (${rawQueries.length} total, p${safePage}/${totalPages}, by last used)\n`;
     if (safePage < totalPages) {
-      header += `-- Next: discourse://explorer/queries/${safePage + 1}\n`;
+      header += `-- Next: shuiyuan://explorer/queries/${safePage + 1}\n`;
     }
     header += "\n";
 
@@ -393,8 +393,8 @@ function truncate(str: string, maxLen: number): string {
 }
 
 /**
- * discourse://explorer/queries - page 1 (default)
- * discourse://explorer/queries/{page} - specific page
+ * shuiyuan://explorer/queries - page 1 (default)
+ * shuiyuan://explorer/queries/{page} - specific page
  */
 export function registerExplorerQueriesResource(
   server: ResourceRegistrar,
@@ -403,7 +403,7 @@ export function registerExplorerQueriesResource(
   // Static resource for page 1
   server.resource(
     "explorer_queries",
-    "discourse://explorer/queries",
+    "shuiyuan://explorer/queries",
     {
       description:
         "Saved Data Explorer queries (30/page, by last used). Shows id, name, description. Use explorer_queries_page for other pages.",
@@ -413,7 +413,7 @@ export function registerExplorerQueriesResource(
 
   // Template resource for pagination
   const template = new ResourceTemplate(
-    "discourse://explorer/queries/{page}",
+    "shuiyuan://explorer/queries/{page}",
     { list: undefined }
   );
 

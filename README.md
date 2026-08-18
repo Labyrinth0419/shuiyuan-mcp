@@ -154,12 +154,12 @@ http://localhost:3765/mcp
 
 底层常用工具包括：
 
-- `discourse_search`
-- `discourse_read_topic`
-- `discourse_read_post`
-- `discourse_get_user`
-- `discourse_list_user_posts`
-- `discourse_get_draft`
+- `shuiyuan_search`
+- `shuiyuan_read_topic`
+- `shuiyuan_read_post`
+- `shuiyuan_get_user`
+- `shuiyuan_list_user_posts`
+- `shuiyuan_get_draft`
 
 ## 构建 Windows 启动器
 

@@ -38,9 +38,9 @@ export function buildAuthorizationUrl(options: GenerateOptions, publicKey: strin
   const url = new URL(`${options.site}/user-api-key/new`);
 
   const params = new URLSearchParams({
-    application_name: options.applicationName || "Discourse MCP",
-    client_id: options.clientId || "discourse-mcp",
-    scopes: options.scopes || "read,write",
+    application_name: options.applicationName || "Shuiyuan MCP",
+    client_id: options.clientId || "shuiyuan-mcp",
+    scopes: options.scopes || "read",
     public_key: publicKey,
     nonce: options.nonce || Date.now().toString(),
   });
@@ -114,13 +114,13 @@ async function saveToProfile(
 export async function generateUserApiKey(options: GenerateOptions): Promise<void> {
   if (!options.site) {
     console.error(`
-Usage: discourse-mcp generate-user-api-key [options]
+Usage: shuiyuan-mcp generate-user-api-key [options]
 
 Options:
   --site <url>              Discourse site URL (required)
   --scopes <scopes>         Comma-separated scopes (default: read,write)
-  --application-name <name> Application name (default: Discourse MCP)
-  --client-id <id>          Client ID (default: discourse-mcp)
+  --application-name <name> Application name (default: Shuiyuan MCP)
+  --client-id <id>          Client ID (default: shuiyuan-mcp)
   --nonce <nonce>           Nonce for request (default: timestamp)
   --payload <payload>       Encrypted payload (skip interactive prompt)
   --save-to <file>          Save to profile file instead of printing
@@ -128,20 +128,20 @@ Options:
 
 Examples:
   # Interactive mode
-  discourse-mcp generate-user-api-key --site https://discourse.example.com
+  shuiyuan-mcp generate-user-api-key --site https://shuiyuan.sjtu.edu.cn
 
   # Save to profile
-  discourse-mcp generate-user-api-key --site https://discourse.example.com --save-to profile.json
+  shuiyuan-mcp generate-user-api-key --site https://shuiyuan.sjtu.edu.cn --save-to profile.json
 
   # Non-interactive with payload
-  discourse-mcp generate-user-api-key --site https://discourse.example.com --payload "base64..."
+  shuiyuan-mcp generate-user-api-key --site https://shuiyuan.sjtu.edu.cn --payload "base64..."
 `);
     process.exit(1);
   }
 
-  console.error("\n🔑 Discourse User API Key Generator\n");
+  console.error("\n🔑 Shuiyuan User API Key Generator\n");
   console.error(`Site: ${options.site}`);
-  console.error(`Scopes: ${options.scopes || "read,write"}\n`);
+  console.error(`Scopes: ${options.scopes || "read"}\n`);
 
   // Step 1: Generate RSA keypair
   console.error("Generating RSA key pair...");
@@ -160,7 +160,7 @@ Examples:
     encryptedPayload = options.payload;
   } else {
     console.error("After authorizing, you will be redirected to a URL like:");
-    console.error("  discourse://auth_redirect?payload=<encrypted_payload>");
+    console.error("  shuiyuan://auth_redirect?payload=<encrypted_payload>");
     console.error("\nOr you may see the encrypted payload displayed on the page.\n");
 
     encryptedPayload = await promptForInput("Paste the encrypted payload here: ");
@@ -182,7 +182,7 @@ Examples:
   console.error("✓ User API Key retrieved successfully\n");
 
   // Step 5: Output or save
-  const clientId = options.clientId || "discourse-mcp";
+  const clientId = options.clientId || "shuiyuan-mcp";
 
   if (options.saveTo) {
     await saveToProfile(options.saveTo, options.site, result.key, clientId);

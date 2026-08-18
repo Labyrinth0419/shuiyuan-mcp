@@ -6,7 +6,7 @@ type AuthRequirement = "any" | "admin";
 function requireSiteAuth(siteState: SiteState, requirement: AuthRequirement) {
   const base = siteState.getSiteBase();
   if (!base) {
-    return jsonError("No site selected. Call discourse_select_site first.");
+    return jsonError("No site selected. Call shuiyuan_select_site first.");
   }
 
   const authType = siteState.getAuthType(base);

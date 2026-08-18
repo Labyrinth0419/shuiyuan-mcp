@@ -203,7 +203,7 @@ export async function main(rawArgs = process.argv.slice(2)) {
 
   // Meta log (stderr) without leaking secrets
   const version = await getPackageVersion();
-  logger.info(`Starting Discourse MCP v${version}`);
+  logger.info(`Starting Shuiyuan MCP v${version}`);
   logger.debug(`Config: ${JSON.stringify(redactObject({ ...config }))}`);
 
   // Initialize dynamic site state
@@ -219,7 +219,7 @@ export async function main(rawArgs = process.argv.slice(2)) {
 
   const server = new McpServer(
     {
-      name: "@discourse/mcp",
+      name: "@shuiyuan/mcp",
       version,
     },
     {

@@ -11,28 +11,28 @@ This server is **read-only**: it exposes search/read tools only. There are no cr
 
 ## Quick Workflow
 
-1. For search or research, call `mcp__shuiyuan__.discourse_search` or `mcp__shuiyuan__.discourse_filter_topics`.
-2. For details, call `discourse_read_topic` or `discourse_read_post`; summarize from returned JSON only.
-3. For user context, use `discourse_get_user`, `discourse_list_user_posts`, `discourse_get_draft`, or `discourse_get_chat_messages`.
+1. For search or research, call `mcp__shuiyuan__.shuiyuan_search` or `mcp__shuiyuan__.shuiyuan_filter_topics`.
+2. For details, call `shuiyuan_read_topic` or `shuiyuan_read_post`; summarize from returned JSON only.
+3. For user context, use `shuiyuan_get_user`, `shuiyuan_list_user_posts`, `shuiyuan_get_draft`, or `shuiyuan_get_chat_messages`.
 
 ## Tool Map
 
 Read tools:
 
-- `discourse_search`
-- `discourse_filter_topics`
-- `discourse_read_topic`
-- `discourse_read_post`
-- `discourse_get_user`
-- `discourse_list_user_posts`
-- `discourse_get_draft`
-- `discourse_get_chat_messages`
+- `shuiyuan_search`
+- `shuiyuan_filter_topics`
+- `shuiyuan_read_topic`
+- `shuiyuan_read_post`
+- `shuiyuan_get_user`
+- `shuiyuan_list_user_posts`
+- `shuiyuan_get_draft`
+- `shuiyuan_get_chat_messages`
 
 Admin-gated read tools (access checked at call time):
 
-- `discourse_list_users`
-- `discourse_get_query`
-- `discourse_run_query`
+- `shuiyuan_list_users`
+- `shuiyuan_get_query`
+- `shuiyuan_run_query`
 
 ## Read Rules
 

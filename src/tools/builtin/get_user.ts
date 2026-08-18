@@ -9,7 +9,7 @@ export const registerGetUser: RegisterFn = (server, ctx, opts) => {
   });
 
   server.registerTool(
-    "discourse_get_user",
+    "shuiyuan_get_user",
     {
       title: "Get User",
       description: "Get user info. Returns JSON with id, username, name, trust_level, created_at, bio, admin, and moderator.",

@@ -21,7 +21,7 @@ export const registerListUsers: RegisterFn = (server, ctx, opts) => {
   });
 
   server.registerTool(
-    "discourse_list_users",
+    "shuiyuan_list_users",
     {
       title: "List Users",
       description: "List users via admin API. Requires admin API key. Returns ~100 users per page (Discourse's fixed page size). Returns JSON with users array and pagination meta.",

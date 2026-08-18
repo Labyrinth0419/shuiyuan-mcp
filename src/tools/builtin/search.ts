@@ -9,7 +9,7 @@ export const registerSearch: RegisterFn = (server, ctx) => {
   });
 
   server.registerTool(
-    "discourse_search",
+    "shuiyuan_search",
     {
       title: "Discourse Search",
       description: "Search site content. Returns JSON object with results array of matching topics (id, slug, title) and meta (total, has_more).",

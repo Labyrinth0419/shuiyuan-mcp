@@ -43,7 +43,7 @@ export class SiteState {
 
   ensureSelectedSite(): { base: string; client: HttpClient } {
     if (!this.currentSiteBase || !this.currentClient) {
-      throw new Error("No site selected. Call discourse_select_site first.");
+      throw new Error("No site selected. Call shuiyuan_select_site first.");
     }
     return { base: this.currentSiteBase, client: this.currentClient };
   }

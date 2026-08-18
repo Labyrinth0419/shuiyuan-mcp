@@ -8,7 +8,7 @@ export const registerReadPost: RegisterFn = (server, ctx) => {
   });
 
   server.registerTool(
-    "discourse_read_post",
+    "shuiyuan_read_post",
     {
       title: "Read Post",
       description: "Read a specific post. Returns JSON with id, topic_id, post_number, username, created_at, and raw content.",

@@ -9,7 +9,7 @@ export const registerSelectSite: RegisterFn = (server, ctx, opts) => {
   });
 
   server.registerTool(
-    "discourse_select_site",
+    "shuiyuan_select_site",
     {
       title: "Select Site",
       description: "Validate and select a Discourse site. Returns JSON with site URL and title.",

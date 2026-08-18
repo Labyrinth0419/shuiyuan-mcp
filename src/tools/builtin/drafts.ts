@@ -35,7 +35,7 @@ export const registerGetDraft: RegisterFn = (server, ctx, _opts) => {
   });
 
   server.registerTool(
-    "discourse_get_draft",
+    "shuiyuan_get_draft",
     {
       title: "Get Draft",
       description:

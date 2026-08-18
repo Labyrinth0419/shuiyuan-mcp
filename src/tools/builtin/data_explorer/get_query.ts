@@ -15,7 +15,7 @@ export const registerGetQuery: RegisterFn = (server, ctx, _opts) => {
   });
 
   server.registerTool(
-    "discourse_get_query",
+    "shuiyuan_get_query",
     {
       title: "Get Data Explorer Query",
       description:

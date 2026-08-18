@@ -35,7 +35,7 @@ export const registerFilterTopics: RegisterFn = (server, ctx) => {
     "order: activity|created|latest-post|likes|views with optional -asc.";
 
   server.registerTool(
-    "discourse_filter_topics",
+    "shuiyuan_filter_topics",
     {
       title: "Filter Topics",
       description,
