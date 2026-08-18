@@ -14,7 +14,7 @@ export async function main(rawArgs = process.argv.slice(2)) {
   try {
     await access(profileFile);
   } catch {
-    throw new Error(`Shuiyuan profile not found: ${profileFile}. Run shuiyuan-mcp-login first.`);
+    throw new Error(`Shuiyuan profile not found: ${profileFile}. Run shuiyuan-mcp-login or shuiyuan-mcp-api-key-login first.`);
   }
 
   await startMcp([

@@ -10,6 +10,7 @@ Shuiyuan MCP 是一个面向 [水源社区](https://shuiyuan.sjtu.edu.cn/) 的 M
 
 - 通过 MCP 工具搜索、读取水源帖子、读取用户信息、查看草稿和聊天频道等。
 - 支持水源 SSO 场景下的 cookie 登录，不需要把 jAccount 密码交给 MCP。
+- 也支持水源 User API Key 登录（可选）：不需要 jAccount 密码，授予后仅凭 key 访问 API。
 - 默认只读启动，避免 AI 意外发帖。
 - 可选择开启写入工具，用于发帖、回复、保存草稿、上传图片等。
 - 提供 Windows 脚本和可构建的 `.exe` 启动器。
@@ -54,6 +55,29 @@ corepack pnpm build
 ```powershell
 .\scripts\shuiyuan-login-and-start.ps1
 ```
+
+## 使用 User API Key 登录（可选）
+
+不想在浏览器里反复登录时，可以使用水源（Discourse）的 User API Key 登录。流程参考 [docs/shuiyuan-api-key.md](docs/shuiyuan-api-key.md)：程序生成 RSA 密钥对并打开授权页面，你在水源上授权后把返回的加密 payload 粘贴回来，程序解密并保存 profile。之后 MCP 通过 `User-Api-Key` 请求头访问水源，无需 cookie。
+
+```powershell
+.\scripts\shuiyuan-api-key-login.ps1
+```
+
+或者用编译后的 Node 入口：
+
+```powershell
+node .\dist\shuiyuan-api-key-login.js
+```
+
+默认请求 `read` scope（只读），并写入同一个 `%APPDATA%\shuiyuan-mcp\profile.json`。常用参数：
+
+- `--scopes read,notifications`：自定义权限（默认 `read`）。
+- `--client-id <id>`：应用标识（默认 `shuiyuan-mcp`）。同一应用重新授权时请保持相同 client-id，旧 key 会自动失效。
+- `--payload <base64>`：非交互模式，直接传入加密 payload。
+- `--profile <path>`：profile 保存路径。
+
+注意：授权页面使用同一 client-id 重新授权会撤销旧 key；也可以随时在水源「偏好设置 → 安全性」撤销任意 key。
 
 ## 日常使用：启动 MCP
 
@@ -224,10 +248,31 @@ Copy-Item .\skills\deepsearch "$env:USERPROFILE\.codex\skills\deepsearch" -Recur
 
 `cookie_file` 指向本机 cookie 文件。不要把真实 cookie 文件提交到 GitHub。
 
+如果用 User API Key 登录，profile 里会是：
+
+```json
+{
+  "auth_pairs": [
+    {
+      "site": "https://shuiyuan.sjtu.edu.cn",
+      "user_api_key": "<your-key>",
+      "user_api_client_id": "shuiyuan-mcp"
+    }
+  ],
+  "read_only": true,
+  "allow_writes": false,
+  "site": "https://shuiyuan.sjtu.edu.cn",
+  "log_level": "info",
+  "tools_mode": "discourse_api_only"
+}
+```
+
+`user_api_key` 等同于你的登录态，请像密码一样保管，不要提交到公开仓库。
+
 ## 安全注意事项
 
-- 本项目不会保存你的 jAccount 密码，只保存浏览器登录后的水源 cookie。
-- `cookies.json` 等同于你的登录态，请像密码一样保管。
+- 本项目不会保存你的 jAccount 密码，只保存浏览器登录后的水源 cookie，或你主动授权的 User API Key。
+- `cookies.json` / `user_api_key` 等同于你的登录态，请像密码一样保管。
 - 不要把 `%APPDATA%\shuiyuan-mcp\cookies.json` 上传到公开仓库。
 - 公共仓库里只应该包含源码、脚本和文档，不应该包含真实 profile/cookie。
 - 开启写入前确认 MCP 客户端和提示词可信。

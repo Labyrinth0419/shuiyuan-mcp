@@ -19,6 +19,7 @@
   "bin": {
     "discourse-mcp": "dist/index.js",
     "shuiyuan-mcp-login": "dist/shuiyuan-login.js",
+    "shuiyuan-mcp-api-key-login": "dist/shuiyuan-api-key-login.js",
     "shuiyuan-mcp": "dist/shuiyuan-mcp.js"
   },
   "main": "dist/index.js",
@@ -31,6 +32,7 @@
     "lint": "eslint src",
     "clean": "rm -rf dist",
     "shuiyuan:login": "node dist/shuiyuan-login.js",
+    "shuiyuan:api-key-login": "node dist/shuiyuan-api-key-login.js",
     "shuiyuan:start": "node dist/shuiyuan-mcp.js",
     "sync:fixtures": "node scripts/sync-fixtures.mjs",
     "test": "node --test dist/test/**/*.js"

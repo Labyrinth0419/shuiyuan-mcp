@@ -2,9 +2,18 @@ using System.Diagnostics;
 
 var exePath = Environment.ProcessPath ?? string.Empty;
 var exeName = Path.GetFileNameWithoutExtension(exePath).ToLowerInvariant();
-var mode = exeName.Contains("login", StringComparison.OrdinalIgnoreCase) ? "login" : "start";
+var mode = exeName.Contains("api-key-login", StringComparison.OrdinalIgnoreCase)
+    ? "api-key-login"
+    : exeName.Contains("login", StringComparison.OrdinalIgnoreCase)
+        ? "login"
+        : "start";
 var root = FindRepositoryRoot(AppContext.BaseDirectory);
-var scriptName = mode == "login" ? "shuiyuan-login.js" : "shuiyuan-mcp.js";
+var scriptName = mode switch
+{
+    "api-key-login" => "shuiyuan-api-key-login.js",
+    "login" => "shuiyuan-login.js",
+    _ => "shuiyuan-mcp.js",
+};
 var scriptPath = Path.Combine(root, "dist", scriptName);
 
 if (!File.Exists(scriptPath))

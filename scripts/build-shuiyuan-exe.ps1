@@ -43,9 +43,11 @@ dotnet @publishArgs
 
 $launcher = Join-Path $OutDir "ShuiyuanLauncher.exe"
 Copy-Item $launcher (Join-Path $OutDir "shuiyuan-mcp-login.exe") -Force
+Copy-Item $launcher (Join-Path $OutDir "shuiyuan-mcp-api-key-login.exe") -Force
 Copy-Item $launcher (Join-Path $OutDir "shuiyuan-mcp.exe") -Force
 Remove-Item $launcher -Force
 
 Write-Host "Built launchers:"
 Write-Host "  $(Join-Path $OutDir 'shuiyuan-mcp-login.exe')"
+Write-Host "  $(Join-Path $OutDir 'shuiyuan-mcp-api-key-login.exe')"
 Write-Host "  $(Join-Path $OutDir 'shuiyuan-mcp.exe')"

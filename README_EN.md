@@ -351,6 +351,20 @@ To build Windows `.exe` launchers for the same flow:
 .\dist-win\shuiyuan-mcp.exe
 ```
 
+### Shuiyuan (SJTU) User API Key Login
+
+Instead of cookies, you can authenticate with a Shuiyuan User API Key (see [docs/shuiyuan-api-key.md](docs/shuiyuan-api-key.md)). The launcher generates an RSA key pair, opens the authorization page in your browser, decrypts the payload you paste back, and saves a profile that authenticates via the `User-Api-Key` header. Default scope is `read` (read-only).
+
+```powershell
+# First-time authorization only
+.\scripts\shuiyuan-api-key-login.ps1
+
+# Or the compiled entry
+node .\dist\shuiyuan-api-key-login.js
+```
+
+This writes the same `%APPDATA%\shuiyuan-mcp\profile.json` (with `user_api_key` / `user_api_client_id` in `auth_pairs`), so `shuiyuan-mcp` starts with either cookie or API-key auth. Options: `--scopes`, `--client-id` (default `shuiyuan-mcp`), `--payload` (non-interactive), `--profile`. Re-authorizing with the same `client-id` revokes the previous key; you can also revoke any key from Shuiyuan 偏好设置 → 安全性.
+
 This repo also includes Codex skills at `skills/shuiyuan-mcp/` and `skills/deepsearch/`. Copy them into your user skills directory if you want Codex to automatically follow the Shuiyuan MCP workflows and trigger deeper multi-pass research when you say `deepsearch`:
 
 ```powershell

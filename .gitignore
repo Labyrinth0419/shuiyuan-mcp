@@ -6,3 +6,7 @@ packaging/**/bin/*
 packaging/**/obj/*
 .claude/*
 .mcp.json
+
+.cursor/
+.pi/
+AGENTS.md
