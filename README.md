@@ -82,15 +82,17 @@ corepack pnpm build
 
 | 工具 | 用途 |
 |------|------|
-| `shuiyuan_search` | 全站搜索，支持 `cache: true` 离线搜索 |
+| `shuiyuan_search` | 全站搜索，支持 `cache: true` 离线搜索、`page` 分页 |
 | `shuiyuan_filter_topics` | 按分类/标签/状态筛选帖子 |
-| `shuiyuan_read_topic` | 读取帖子全文，支持 `cache: true` |
+| `shuiyuan_read_topic` | 读取帖子，`all: true` 全量读取 |
 | `shuiyuan_read_post` | 读取单个回复 |
 | `shuiyuan_get_user` | 获取用户资料 |
 | `shuiyuan_list_user_posts` | 列出用户最近帖子 |
 | `shuiyuan_get_chat_messages` | 获取聊天消息 |
 | `shuiyuan_get_draft` | 获取草稿 |
 | `shuiyuan_download_media` | 并行下载帖子中的图片/附件/视频/音频 |
+| `shuiyuan_topic_meta` | 帖子元数据（热度、相关帖子、链接） |
+| `shuiyuan_user_card` | 用户卡片（trust level、徽章、帖子参与度） |
 
 ## 资源
 

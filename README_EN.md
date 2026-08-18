@@ -82,15 +82,17 @@ Both write to `%APPDATA%\shuiyuan-mcp\profile.json`.
 
 | Tool | Purpose |
 |------|---------|
-| `shuiyuan_search` | Full-text search, supports `cache: true` for offline mode |
+| `shuiyuan_search` | Full-text search, supports `cache: true` for offline mode and `page` pagination |
 | `shuiyuan_filter_topics` | Filter topics by category/tag/status |
-| `shuiyuan_read_topic` | Read full topic, supports `cache: true` |
+| `shuiyuan_read_topic` | Read topic posts, `all: true` for full read |
 | `shuiyuan_read_post` | Read a single post |
 | `shuiyuan_get_user` | Get user profile |
 | `shuiyuan_list_user_posts` | List user's recent posts |
 | `shuiyuan_get_chat_messages` | Get chat messages |
 | `shuiyuan_get_draft` | Get a draft |
 | `shuiyuan_download_media` | Parallel download of images/attachments/video/audio from topics |
+| `shuiyuan_topic_meta` | Topic metadata (views, likes, related topics, links) |
+| `shuiyuan_user_card` | User card (trust level, badges, topic post count) |
 
 ## Resources
 
