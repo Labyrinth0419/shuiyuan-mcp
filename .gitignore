@@ -9,4 +9,6 @@ packaging/**/obj/*
 
 .cursor/
 .pi/
-AGENTS.md.pi-exporter-files.txt
+AGENTS.md
+build/
+.pi-exporter-files.txt
