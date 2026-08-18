@@ -1,239 +1,140 @@
-# Shuiyuan MCP 中文说明
+# Shuiyuan MCP
 
-[English README](README_EN.md)
+[English](README_EN.md)
 
-> **重要：水源使用规则**：发帖、回帖或自动化读取水源前，请先阅读内置的 [水源规则参考](skills/shuiyuan-mcp/references/rules.md)。
+> **重要：使用水源前请先阅读 [水源规则](skills/shuiyuan-mcp/references/rules.md)。**
 
-Shuiyuan MCP 是一个面向 [水源社区](https://shuiyuan.sjtu.edu.cn/) 的 Model Context Protocol (MCP) 服务器。它基于 Discourse MCP，额外加入了适配水源 jAccount/SSO 登录的 cookie 登录流程：首次使用时打开浏览器让你登录，之后 MCP 可以复用本机保存的登录态访问水源。
+面向 [水源社区](https://shuiyuan.sjtu.edu.cn/) 的只读 MCP 服务器，基于 Discourse MCP fork。首次使用打开浏览器登录，之后复用本地保存的登录态。
 
-## 功能概览
+## 功能
 
-- 通过 MCP 工具搜索、读取水源帖子、读取用户信息、查看草稿和聊天频道等。
-- 支持水源 SSO 场景下的 cookie 登录，不需要把 jAccount 密码交给 MCP。
-- 也支持水源 User API Key 登录（可选）：不需要 jAccount 密码，授予后仅凭 key 访问 API。
-- **纯只读**：本分支已移除所有发帖、编辑和修改用户资料的写工具。
-- 提供 Windows 脚本和可构建的 `.exe` 启动器。
+- 搜索、筛选、读取水源帖子和用户信息
+- 查看草稿、聊天频道
+- 并行下载帖子中的图片、附件、视频、音频
+- 持久化搜索缓存（SQLite FTS5），服务器故障时自动降级
+- 支持 cookie 登录（jAccount SSO）和 User API Key 登录
+- **纯只读**：已移除所有发帖、编辑和用户资料修改功能
 
 ## 环境要求
 
-- Windows 推荐环境：PowerShell、Node.js >= 24、pnpm/corepack。
-- 构建 Windows `.exe` 启动器需要 .NET SDK。
-- 首次登录会使用 Playwright 打开 Chromium 登录窗口；如果本机缺少 Chromium，登录命令会自动安装。
-
-检查 Node：
-
-```powershell
-node --version
-corepack --version
-```
-
-安装依赖并构建：
+- Node.js ≥ 24、pnpm/corepack
+- Windows 构建 `.exe` 需要 .NET SDK
+- Docker 部署需 Docker ≥ 20.10
 
 ```powershell
 corepack pnpm install
 corepack pnpm build
 ```
 
-## 第一次使用：登录水源
+## 快速开始
 
-运行：
+### 1. 登录（二选一）
+
+**Cookie 登录**（打开浏览器完成 jAccount SSO）：
 
 ```powershell
 .\scripts\shuiyuan-login.ps1
 ```
 
-命令会打开一个浏览器窗口。你在窗口中完成水源/jAccount 登录即可。登录成功后，程序会自动关闭窗口并保存：
-
-- Cookie 文件：`%APPDATA%\shuiyuan-mcp\cookies.json`
-- MCP profile：`%APPDATA%\shuiyuan-mcp\profile.json`
-
-这个 profile 会引用 cookie 文件，后续启动 MCP 时不会把 cookie 放在命令行参数里。
-
-如果想首次登录后立即启动 MCP：
-
-```powershell
-.\scripts\shuiyuan-login-and-start.ps1
-```
-
-## 使用 User API Key 登录（可选）
-
-不想在浏览器里反复登录时，可以使用水源（Discourse）的 User API Key 登录。流程参考 [docs/shuiyuan-api-key.md](docs/shuiyuan-api-key.md)：程序生成 RSA 密钥对并打开授权页面，你在水源上授权后把返回的加密 payload 粘贴回来，程序解密并保存 profile。之后 MCP 通过 `User-Api-Key` 请求头访问水源，无需 cookie。
+**User API Key 登录**（无需浏览器反复登录，参考 [docs/shuiyuan-api-key.md](docs/shuiyuan-api-key.md)）：
 
 ```powershell
 .\scripts\shuiyuan-api-key-login.ps1
 ```
 
-或者用编译后的 Node 入口：
+两种方式都会写入 `%APPDATA%\shuiyuan-mcp\profile.json`。
 
-```powershell
-node .\dist\shuiyuan-api-key-login.js
-```
-
-默认请求 `read` scope（只读），并写入同一个 `%APPDATA%\shuiyuan-mcp\profile.json`。常用参数：
-
-- `--scopes read,notifications`：自定义权限（默认 `read`）。
-- `--client-id <id>`：应用标识（默认 `shuiyuan-mcp`）。同一应用重新授权时请保持相同 client-id，旧 key 会自动失效。
-- `--payload <base64>`：非交互模式，直接传入加密 payload。
-- `--profile <path>`：profile 保存路径。
-
-注意：授权页面使用同一 client-id 重新授权会撤销旧 key；也可以随时在水源「偏好设置 → 安全性」撤销任意 key。
-
-## 日常使用：启动 MCP
-
-登录过一次后，直接运行：
+### 2. 启动 MCP
 
 ```powershell
 .\scripts\shuiyuan-mcp.ps1
 ```
 
-这个命令会以 stdio transport 启动 MCP，适合配置到 Claude Desktop、Cursor、Codex 等 MCP 客户端。本分支是纯只读服务器：所有发帖、编辑、用户资料修改等写工具都已移除。
+### 3. MCP 客户端配置
 
-如果你想临时用 HTTP transport 调试：
-
-```powershell
-.\scripts\shuiyuan-mcp.ps1 --transport http --port 3765
-```
-
-健康检查：
-
-```powershell
-Invoke-RestMethod http://localhost:3765/health
-```
-
-MCP endpoint：
-
-```text
-http://localhost:3765/mcp
-```
-
-## MCP 客户端配置示例
-
-把下面配置加入你的 MCP 客户端配置文件。路径按你的仓库位置调整：
+**PowerShell 脚本方式**：
 
 ```json
 {
   "mcpServers": {
     "shuiyuan": {
       "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "D:\\repo\\discourse-mcp\\scripts\\shuiyuan-mcp.ps1"
-      ]
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "D:\\path\\to\\shuiyuan-mcp\\scripts\\shuiyuan-mcp.ps1"]
     }
   }
 }
 ```
 
-也可以直接使用编译后的 Node 入口：
+**Node 直接启动**：
 
 ```json
 {
   "mcpServers": {
     "shuiyuan": {
       "command": "node",
-      "args": [
-        "D:\\repo\\discourse-mcp\\dist\\shuiyuan-mcp.js"
-      ]
+      "args": ["D:\\path\\to\\shuiyuan-mcp\\dist\\shuiyuan-mcp.js"]
     }
   }
 }
 ```
 
-## 常用请求示例
+## 工具
 
-连接 MCP 后，可以让 AI 这样使用水源：
+| 工具 | 用途 |
+|------|------|
+| `shuiyuan_search` | 全站搜索，支持 `cache: true` 离线搜索 |
+| `shuiyuan_filter_topics` | 按分类/标签/状态筛选帖子 |
+| `shuiyuan_read_topic` | 读取帖子全文，支持 `cache: true` |
+| `shuiyuan_read_post` | 读取单个回复 |
+| `shuiyuan_get_user` | 获取用户资料 |
+| `shuiyuan_list_user_posts` | 列出用户最近帖子 |
+| `shuiyuan_get_chat_messages` | 获取聊天消息 |
+| `shuiyuan_get_draft` | 获取草稿 |
+| `shuiyuan_download_media` | 并行下载帖子中的图片/附件/视频/音频 |
 
-```text
-在水源搜索“选课 经验”，总结前 5 个相关主题。
-读取 topic_id 为 12345 的帖子，并总结主要讨论。
-查看我在水源的草稿列表。
-```
+## 资源
 
-底层常用工具包括：
-
-- `shuiyuan_search`
-- `shuiyuan_read_topic`
-- `shuiyuan_read_post`
-- `shuiyuan_get_user`
-- `shuiyuan_list_user_posts`
-- `shuiyuan_get_draft`
-
-## 构建 Windows 启动器
-
-生成两个 `.exe`：
-
-```powershell
-.\scripts\build-shuiyuan-exe.ps1
-```
-
-输出目录：
-
-```text
-dist-win\
-```
-
-生成的入口：
-
-- `dist-win\shuiyuan-mcp-login.exe`：首次使用，打开窗口登录并保存 cookie。
-- `dist-win\shuiyuan-mcp-api-key-login.exe`：首次使用，生成 User API Key 并保存 profile。
-- `dist-win\shuiyuan-mcp.exe`：日常使用，复用已保存 profile 启动只读 MCP。
-
-如果希望生成自包含 exe：
-
-```powershell
-.\scripts\build-shuiyuan-exe.ps1 -SelfContained
-```
+| URI | 用途 |
+|-----|------|
+| `shuiyuan://site/categories` | 分类列表 |
+| `shuiyuan://site/tags` | 标签列表 |
+| `shuiyuan://site/groups` | 用户组 |
+| `shuiyuan://chat/channels` | 聊天频道 |
+| `shuiyuan://user/chat-channels` | 用户聊天频道 |
+| `shuiyuan://user/drafts` | 草稿列表 |
 
 ## Docker 部署
 
 容器内已包含 better-sqlite3 编译环境和搜索缓存，适合服务端长期运行。
 
-### 构建镜像
-
 ```bash
+# 构建
 docker build -t shuiyuan-mcp .
-```
 
-### 准备 profile
+# 准备 profile（先在本地完成登录）
+PROFILE="$env:APPDATA\shuiyuan-mcp\profile.json"
 
-先在本地完成登录（cookie 或 API Key），拿到 `profile.json`：
-
-```powershell
-# Windows 路径
-$PROFILE = "$env:APPDATA\shuiyuan-mcp\profile.json"
-```
-
-### 启动（stdio 模式，供 MCP 客户端连接）
-
-```bash
+# stdio 模式（MCP 客户端连接）
 docker run --rm -i \
   -v shuiyuan-data:/data \
   -v "$PROFILE":/data/profile.json:ro \
   shuiyuan-mcp
-```
 
-### 启动（HTTP 模式，可远程访问）
-
-```bash
+# HTTP 模式（远程访问）
 docker run --rm -p 3765:3765 \
   -v shuiyuan-data:/data \
   -v "$PROFILE":/data/profile.json:ro \
   shuiyuan-mcp --transport http --port 3765
 ```
 
-### docker-compose
+**docker-compose**：
 
 ```bash
-# 先把 profile.json 复制到项目根目录
 cp "$env:APPDATA\shuiyuan-mcp\profile.json" .
-
 docker compose up -d
 ```
 
-### MCP 客户端连接 Docker
+**MCP 客户端连接 Docker**：
 
 ```json
 {
@@ -246,123 +147,68 @@ docker compose up -d
 }
 ```
 
-### 数据持久化
-
-- `/data/profile.json` — 认证信息（只读挂载）
-- `/data/cache/search.db` — 搜索缓存（SQLite，自动创建）
-- Docker volume `shuiyuan-data` 跨重启保留缓存
-
 ## Codex Skill
 
-仓库内置了一套 Codex skill：
-
-```text
-skills/shuiyuan-mcp/
-skills/deepsearch/
-```
-
-`shuiyuan-mcp` 会指导 Codex 使用 `mcp__shuiyuan__` 工具完成水源搜索、读帖、修正中文编码等只读流程。`deepsearch` 会在你说出关键词 `deepsearch` 或要求深度研究时，指导 Codex 做多轮检索、交叉验证和证据综合。要安装到本机 Codex skills 目录，可以复制：
+仓库内置两套 skill：
 
 ```powershell
 Copy-Item .\skills\shuiyuan-mcp "$env:USERPROFILE\.codex\skills\shuiyuan-mcp" -Recurse -Force
 Copy-Item .\skills\deepsearch "$env:USERPROFILE\.codex\skills\deepsearch" -Recurse -Force
 ```
 
-## 配置文件说明
+- `shuiyuan-mcp`：指导 Codex 使用水源 MCP 只读工具
+- `deepsearch`：关键词 `deepsearch` 触发多轮检索、交叉验证和证据综合
 
-登录后生成的 profile 大致如下：
+## 安全
 
-```json
-{
-  "auth_pairs": [
-    {
-      "site": "https://shuiyuan.sjtu.edu.cn",
-      "cookie_file": "C:\\Users\\you\\AppData\\Roaming\\shuiyuan-mcp\\cookies.json"
-    }
-  ],
-  "read_only": true,
-  "allow_writes": false,
-  "site": "https://shuiyuan.sjtu.edu.cn",
-  "log_level": "info",
-  "tools_mode": "discourse_api_only"
-}
-```
+- 不保存 jAccount 密码，只保存 cookie 或 User API Key
+- `cookies.json` / `user_api_key` 等同登录态，请妥善保管
+- 不要将 profile/cookie 文件提交到公开仓库
 
-`cookie_file` 指向本机 cookie 文件。不要把真实 cookie 文件提交到 GitHub。
-
-如果用 User API Key 登录，profile 里会是：
-
-```json
-{
-  "auth_pairs": [
-    {
-      "site": "https://shuiyuan.sjtu.edu.cn",
-      "user_api_key": "<your-key>",
-      "user_api_client_id": "shuiyuan-mcp"
-    }
-  ],
-  "read_only": true,
-  "allow_writes": false,
-  "site": "https://shuiyuan.sjtu.edu.cn",
-  "log_level": "info",
-  "tools_mode": "discourse_api_only"
-}
-```
-
-`user_api_key` 等同于你的登录态，请像密码一样保管，不要提交到公开仓库。
-
-## 安全注意事项
-
-- 本项目不会保存你的 jAccount 密码，只保存浏览器登录后的水源 cookie，或你主动授权的 User API Key。
-- `cookies.json` / `user_api_key` 等同于你的登录态，请像密码一样保管。
-- 不要把 `%APPDATA%\shuiyuan-mcp\cookies.json` 上传到公开仓库。
-- 公共仓库里只应该包含源码、脚本和文档，不应该包含真实 profile/cookie。
-
-## 开发命令
+## 开发
 
 ```powershell
-corepack pnpm install
-corepack pnpm typecheck
-corepack pnpm build
-corepack pnpm lint
-corepack pnpm test
+corepack pnpm install    # 安装依赖
+corepack pnpm typecheck  # 类型检查
+corepack pnpm build      # 编译
+corepack pnpm lint       # 代码检查
+corepack pnpm test       # 测试（需先 build）
 ```
 
 项目结构：
 
-- `src/index.ts`：通用 Discourse MCP 入口。
-- `src/shuiyuan-login.ts`：水源登录窗口和 cookie 保存流程。
-- `src/shuiyuan-mcp.ts`：使用保存的 profile 启动水源 MCP。
-- `src/http/client.ts`：HTTP client，支持 API key、User API key 和 cookie auth。
-- `scripts/*.ps1` / `scripts/*.cmd`：Windows 启动脚本。
-- `packaging/ShuiyuanLauncher`：Windows `.exe` 启动器源码。
-
-## 故障排查
-
-如果提示找不到 profile：
-
-```text
-Shuiyuan profile not found
-```
-
-先运行：
-
-```powershell
-.\scripts\shuiyuan-login.ps1
-```
-
-如果水源接口返回未登录或权限不足，重新登录刷新 cookie：
-
-```powershell
-.\scripts\shuiyuan-login.ps1
-```
-
-如果 HTTP 调试端口被占用，换一个端口：
-
-```powershell
-.\scripts\shuiyuan-mcp.ps1 --transport http --port 3766
-```
+| 路径 | 用途 |
+|------|------|
+| `src/index.ts` | MCP 入口 |
+| `src/shuiyuan-login.ts` | 浏览器 cookie 登录 |
+| `src/shuiyuan-mcp.ts` | 启动 MCP（复用 profile） |
+| `src/shuiyuan-api-key-login.ts` | User API Key 登录 |
+| `src/cache/` | SQLite FTS5 搜索缓存 |
+| `src/http/client.ts` | HTTP 客户端 |
+| `src/tools/builtin/` | 内置工具 |
+| `src/resources/` | 资源注册 |
+| `skills/` | Codex skills |
 
 ## 许可证
 
-MIT。上游实现来自 Discourse MCP，本仓库在此基础上增加水源登录和启动封装。
+MIT。上游实现来自 [Discourse MCP](https://github.com/discourse/discourse-mcp)。
+
+---
+
+## 相对于上游 `@dajiaohuang/discourse-mcp` 的改动
+
+| 类别 | 改动 | 提交 |
+|------|------|------|
+| **登录** | 新增 User API Key 登录（`shuiyuan-api-key-login`），支持 RSA 密钥对 + 水源授权流程 | `ad4a79f` |
+| **只读** | 移除全部写工具：create/update post/topic/category/user、upload_file、save/delete_draft、Data Explorer query CRUD | `5ee412f` |
+| **重命名** | 所有 `discourse_*` 工具 → `shuiyuan_*`，资源 URI `discourse://` → `shuiyuan://`，User-Agent → `Shuiyuan-MCP`，server name → `@shuiyuan/mcp` | `33f7b40` |
+| **精简** | 移除 admin-only 工具（list_users、get_query、run_query）、Data Explorer 资源、sql_query prompt | `01e08bc` |
+| **精简** | 移除 `shuiyuan_select_site`（站点已硬编码为 `https://shuiyuan.sjtu.edu.cn`） | `ef55f3c` |
+| **媒体** | 新增 `shuiyuan_download_media`：并行下载帖子中的图片/附件/视频/音频 | `50387c5` |
+| **缓存** | 新增 SQLite FTS5 持久化搜索缓存：`search` 和 `read_topic` 支持 `cache: true` 离线模式，live 操作自动填充缓存 | `c00642e` |
+| **Skill** | 新增 `deepsearch` skill：指导模型在深度研究场景下使用缓存搜索/读取工作流 | `c00642e` |
+| **Docker** | 新增 Dockerfile + docker-compose，支持容器化部署 | `0dac049` |
+| **脚本** | 新增 `shuiyuan-api-key-login.ps1/.cmd` 启动脚本 | `ad4a79f` |
+| **Windows** | Windows launcher（ShuiyuanLauncher）支持三种模式分发：login / api-key-login / mcp | `ad4a79f` |
+| **默认值** | 站点硬编码 `https://shuiyuan.sjtu.edu.cn`，`tools_mode` 固定 `discourse_api_only`，`read_only: true`，`allow_writes: false` | 全局 |
+| **工具数** | 上游 20+ 工具 → 本 fork 9 个工具 + 6 个资源 + 0 个 prompt | — |
