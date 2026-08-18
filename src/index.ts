@@ -59,7 +59,7 @@ const ProfileSchema = z
     log_level: z.enum(["silent", "error", "info", "debug"]).optional().default("info"),
     show_emails: z.boolean().optional().default(false),
     tools_mode: z.enum(["auto", "discourse_api_only", "tool_exec_api"]).optional().default("auto"),
-    site: z.string().url().optional().describe("Tether MCP to a single Discourse site; hides select_site and preselects this site"),
+    site: z.string().url().optional().describe("Tether MCP to a single Discourse site; preselects this site at startup"),
     default_search: z.string().optional().describe("Optional search prefix added to every search query (set via --default-search)"),
     max_read_length: z
       .number()
@@ -236,14 +236,12 @@ export async function main(rawArgs = process.argv.slice(2)) {
 
   // If tethered to a site, validate and preselect it before registering tools,
   // and trigger remote tool discovery when enabled.
-  let hideSelectSite = false;
   if (config.site) {
     try {
       const { base, client } = siteState.buildClientForSite(config.site);
       const about = (await client.get(`/about.json`)) as any;
       const title = about?.about?.title || about?.title || base;
       siteState.selectSite(base);
-      hideSelectSite = true;
       logger.info(`Tethered to site: ${base} (${title})`);
     } catch (e: any) {
       throw new Error(`Failed to validate --site ${config.site}: ${e?.message || String(e)}`);
@@ -253,7 +251,6 @@ export async function main(rawArgs = process.argv.slice(2)) {
   await registerAllTools(server, siteState, logger, {
     allowWrites,
     toolsMode: config.tools_mode,
-    hideSelectSite,
     defaultSearchPrefix: config.default_search,
     maxReadLength: config.max_read_length,
     allowedUploadPaths: config.allowed_upload_paths,

@@ -173,28 +173,7 @@ test('HttpClient cookie auth fetches CSRF token for writes', async () => {
   }
 });
 
-test('select-site then search flow preserves subfolder base path', async () => {
-  const logger = new Logger('silent');
-  const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
-  const { server, tools } = createMockServer();
-  const calls: string[] = [];
-  const restoreFetch = mockJsonFetch(calls);
 
-  try {
-    await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only' } satisfies RegistryOptions);
-
-    const selectRes = await tools['shuiyuan_select_site'].handler({ site: 'https://example.com/forum' }, {});
-    assert.equal(selectRes?.isError, undefined);
-
-    const searchRes = await tools['shuiyuan_search'].handler({ query: 'hello' }, {});
-    assert.equal(searchRes?.isError, undefined);
-
-    assert.equal(calls[0], 'https://example.com/forum/about.json');
-    assert.ok(calls[1]?.startsWith('https://example.com/forum/search.json?'));
-  } finally {
-    restoreFetch();
-  }
-});
 
 test('tethered validation then search preserves subfolder base path', async () => {
   const logger = new Logger('silent');
@@ -208,8 +187,7 @@ test('tethered validation then search preserves subfolder base path', async () =
     await client.get('/about.json');
     siteState.selectSite(base);
 
-    await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only', hideSelectSite: true } satisfies RegistryOptions);
-    assert.ok(!('shuiyuan_select_site' in tools));
+    await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only' } satisfies RegistryOptions);
 
     const searchRes = await tools['shuiyuan_search'].handler({ query: 'hello' }, {});
     assert.equal(searchRes?.isError, undefined);

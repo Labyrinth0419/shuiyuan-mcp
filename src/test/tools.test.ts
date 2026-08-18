@@ -71,8 +71,27 @@ test('fixtures manifest exists or sync script can be run', async () => {
   assert.ok(manifest === null || typeof manifest === 'object');
 });
 
-// Integration-style test: select site then search (HTTP mocked)
-test('select-site then search flow works with mocked HTTP', async () => {
+// Helper: pre-select site (as launchers do at startup)
+async function preSelectSite(siteState: SiteState) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, _init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url.endsWith('/about.json')) {
+      return new Response(JSON.stringify({ about: { title: 'Example Discourse' } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response('not found', { status: 404 });
+  }) as any;
+  try {
+    const { base, client } = siteState.buildClientForSite('https://example.com');
+    await client.get('/about.json');
+    siteState.selectSite(base);
+  } finally {
+    globalThis.fetch = originalFetch as any;
+  }
+}
+
+// Integration-style test: search flow (HTTP mocked)
+test('search flow works with mocked HTTP', async () => {
   const logger = new Logger('silent');
   const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
 
@@ -93,46 +112,10 @@ test('select-site then search flow works with mocked HTTP', async () => {
   }) as any;
 
   try {
-    const selectRes = await tools['shuiyuan_select_site'].handler({ site: 'https://example.com' }, {});
-    assert.equal(selectRes?.isError, undefined);
-
-    const searchRes = await tools['shuiyuan_search'].handler({ query: 'hello' }, {});
-    const text = String(searchRes?.content?.[0]?.text || '');
-    const json = JSON.parse(text);
-    assert.ok(json.results);
-    assert.equal(json.results[0].slug, 'hello-world');
-  } finally {
-    globalThis.fetch = originalFetch as any;
-  }
-});
-
-// Tethered mode: preselect site via --site and hide select_site
-test('tethered mode hides select_site and allows search without selection', async () => {
-  const logger = new Logger('silent');
-  const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
-
-  const { server, tools } = createMockServer();
-
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (input: RequestInfo | URL, _init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input.toString();
-    if (url.endsWith('/about.json')) {
-      return new Response(JSON.stringify({ about: { title: 'Example Discourse' } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    }
-    if (url.includes('/search.json')) {
-      return new Response(JSON.stringify({ topics: [{ id: 123, title: 'Hello World', slug: 'hello-world' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    }
-    return new Response('not found', { status: 404 });
-  }) as any;
-
-  try {
+    // Pre-select site (as launchers do)
     const { base, client } = siteState.buildClientForSite('https://example.com');
     await client.get('/about.json');
     siteState.selectSite(base);
-
-    await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only', hideSelectSite: true } satisfies RegistryOptions);
-
-    assert.ok(!('shuiyuan_select_site' in tools));
 
     const searchRes = await tools['shuiyuan_search'].handler({ query: 'hello' }, {});
     const text = String(searchRes?.content?.[0]?.text || '');
@@ -212,7 +195,7 @@ test('read_topic uses raw pages for larger auto reads', async () => {
     await client.get('/about.json');
     siteState.selectSite(base);
 
-    await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only', hideSelectSite: true });
+    await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only' });
 
     const result = await tools['shuiyuan_read_topic'].handler({ topic_id: 123, post_limit: 50 }, {});
     const json = JSON.parse(String(result.content?.[0]?.text || '{}'));
@@ -270,7 +253,7 @@ test('read_topic keeps structured mode when explicitly requested', async () => {
     await client.get('/about.json');
     siteState.selectSite(base);
 
-    await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only', hideSelectSite: true });
+    await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only' });
 
     const result = await tools['shuiyuan_read_topic'].handler({ topic_id: 123, post_limit: 50, format: 'structured' }, {});
     const json = JSON.parse(String(result.content?.[0]?.text || '{}'));
@@ -288,7 +271,6 @@ test('read_topic keeps structured mode when explicitly requested', async () => {
 // ========================
 
 const READ_ONLY_TOOLS = [
-  'shuiyuan_select_site',
   'shuiyuan_search',
   'shuiyuan_filter_topics',
   'shuiyuan_read_topic',
@@ -310,7 +292,8 @@ test('read-only server registers exactly read tools', async () => {
   });
 
   const registeredTools = Object.keys(tools).sort();
-  assert.deepEqual(registeredTools, READ_ONLY_TOOLS.sort());
+  const expected = READ_ONLY_TOOLS.sort();
+  assert.deepEqual(registeredTools, expected);
 });
 
 test('write tools are never registered', async () => {
@@ -332,23 +315,8 @@ test('write tools are never registered', async () => {
     assert.ok(!name.includes('list_users'));
     assert.ok(!name.includes('get_query'));
     assert.ok(!name.includes('run_query'));
+    assert.ok(!name.includes('select_site'));
   }
-});
-
-test('tethered mode hides select_site from tool list', async () => {
-  const logger = new Logger('silent');
-  const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
-  const { server, tools } = createMockServer();
-
-  await registerAllTools(server, siteState, logger, {
-    allowWrites: false,
-    toolsMode: 'discourse_api_only',
-    hideSelectSite: true
-  });
-
-  const registeredTools = Object.keys(tools).sort();
-  const expectedTools = READ_ONLY_TOOLS.filter(t => t !== 'shuiyuan_select_site').sort();
-  assert.deepEqual(registeredTools, expectedTools);
 });
 
 // ========================

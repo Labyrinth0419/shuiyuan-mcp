@@ -5,7 +5,6 @@ import { registerSearch } from "./builtin/search.js";
 import { registerReadTopic } from "./builtin/read_topic.js";
 import { registerReadPost } from "./builtin/read_post.js";
 import { registerGetUser } from "./builtin/get_user.js";
-import { registerSelectSite } from "./builtin/select_site.js";
 import { registerFilterTopics } from "./builtin/filter_topics.js";
 import { registerListUserPosts } from "./builtin/list_user_posts.js";
 import { registerGetChatMessages } from "./builtin/get_chat_messages.js";
@@ -29,8 +28,6 @@ export type ToolsMode = "auto" | "discourse_api_only" | "tool_exec_api";
 export interface RegistryOptions {
   allowWrites: boolean;
   toolsMode: ToolsMode;
-  // When true, do not register the shuiyuan_select_site tool
-  hideSelectSite?: boolean;
   // Optional default search prefix to add to all searches
   defaultSearchPrefix?: string;
   // Allowed directories for local file uploads (if empty/undefined, local uploads are disabled)
@@ -47,11 +44,6 @@ export async function registerAllTools(
 ) {
   const ctx = { siteState, logger, defaultSearchPrefix: opts.defaultSearchPrefix, maxReadLength: opts.maxReadLength ?? 50000, allowedUploadPaths: opts.allowedUploadPaths } as const;
 
-  // Built-in tools (actions and parameterized queries)
-  if (!opts.hideSelectSite) {
-    registerSelectSite(server, ctx, { allowWrites: false, toolsMode: opts.toolsMode });
-  }
-  
   // Search and filter tools (parameterized queries)
   registerSearch(server, ctx, { allowWrites: false });
   registerFilterTopics(server, ctx, { allowWrites: false });
