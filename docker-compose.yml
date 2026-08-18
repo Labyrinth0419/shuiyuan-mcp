@@ -1,0 +1,16 @@
+services:
+  shuiyuan-mcp:
+    build: .
+    container_name: shuiyuan-mcp
+    volumes:
+      # Persist profile (auth) and cache across restarts
+      - shuiyuan-data:/data
+      # Optionally mount a pre-existing profile from the host:
+      # - ./profile.json:/data/profile.json:ro
+    # Uncomment for HTTP transport:
+    # ports:
+    #   - "3765:3765"
+    # command: ["--transport", "http", "--port", "3765"]
+
+volumes:
+  shuiyuan-data:

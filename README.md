@@ -187,6 +187,71 @@ dist-win\
 .\scripts\build-shuiyuan-exe.ps1 -SelfContained
 ```
 
+## Docker 部署
+
+容器内已包含 better-sqlite3 编译环境和搜索缓存，适合服务端长期运行。
+
+### 构建镜像
+
+```bash
+docker build -t shuiyuan-mcp .
+```
+
+### 准备 profile
+
+先在本地完成登录（cookie 或 API Key），拿到 `profile.json`：
+
+```powershell
+# Windows 路径
+$PROFILE = "$env:APPDATA\shuiyuan-mcp\profile.json"
+```
+
+### 启动（stdio 模式，供 MCP 客户端连接）
+
+```bash
+docker run --rm -i \
+  -v shuiyuan-data:/data \
+  -v "$PROFILE":/data/profile.json:ro \
+  shuiyuan-mcp
+```
+
+### 启动（HTTP 模式，可远程访问）
+
+```bash
+docker run --rm -p 3765:3765 \
+  -v shuiyuan-data:/data \
+  -v "$PROFILE":/data/profile.json:ro \
+  shuiyuan-mcp --transport http --port 3765
+```
+
+### docker-compose
+
+```bash
+# 先把 profile.json 复制到项目根目录
+cp "$env:APPDATA\shuiyuan-mcp\profile.json" .
+
+docker compose up -d
+```
+
+### MCP 客户端连接 Docker
+
+```json
+{
+  "mcpServers": {
+    "shuiyuan": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "-v", "shuiyuan-data:/data", "shuiyuan-mcp"]
+    }
+  }
+}
+```
+
+### 数据持久化
+
+- `/data/profile.json` — 认证信息（只读挂载）
+- `/data/cache/search.db` — 搜索缓存（SQLite，自动创建）
+- Docker volume `shuiyuan-data` 跨重启保留缓存
+
 ## Codex Skill
 
 仓库内置了一套 Codex skill：

@@ -443,6 +443,68 @@ You can also manually create User API Keys via the Discourse UI (if enabled by t
 - Visit your user preferences → Security → API
 - Or use third-party tools that implement the User API Key flow
 
+## Docker Deployment
+
+The container includes the better-sqlite3 build environment and search cache, suitable for long-running server deployments.
+
+### Build Image
+
+```bash
+docker build -t shuiyuan-mcp .
+```
+
+### Prepare Profile
+
+Complete login locally (cookie or API Key) to obtain `profile.json`:
+
+```bash
+PROFILE="$HOME/.config/shuiyuan-mcp/profile.json"
+```
+
+### Start (stdio mode, for MCP clients)
+
+```bash
+docker run --rm -i \
+  -v shuiyuan-data:/data \
+  -v "$PROFILE":/data/profile.json:ro \
+  shuiyuan-mcp
+```
+
+### Start (HTTP mode, remotely accessible)
+
+```bash
+docker run --rm -p 3765:3765 \
+  -v shuiyuan-data:/data \
+  -v "$PROFILE":/data/profile.json:ro \
+  shuiyuan-mcp --transport http --port 3765
+```
+
+### docker-compose
+
+```bash
+cp "$PROFILE" .
+docker compose up -d
+```
+
+### MCP Client Connection to Docker
+
+```json
+{
+  "mcpServers": {
+    "shuiyuan": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "-v", "shuiyuan-data:/data", "shuiyuan-mcp"]
+    }
+  }
+}
+```
+
+### Data Persistence
+
+- `/data/profile.json` — Auth info (read-only mount)
+- `/data/cache/search.db` — Search cache (SQLite, auto-created)
+- Docker volume `shuiyuan-data` persists cache across restarts
+
 ## FAQ
 
 - **Why are write tools missing?** This fork is read-only by design: posting, editing, and user-profile write tools were removed.

@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-win
+release
+build
+.git
+.cursor
+.pi
+*.md
+!README.md
+scripts
+packaging
+fixtures
+.stat
