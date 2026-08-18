@@ -197,18 +197,9 @@ MIT。上游实现来自 [Discourse MCP](https://github.com/discourse/discourse-
 
 ## 相对于上游 `@dajiaohuang/discourse-mcp` 的改动
 
-| 类别 | 改动 | 提交 |
-|------|------|------|
-| **登录** | 新增 User API Key 登录（`shuiyuan-api-key-login`），支持 RSA 密钥对 + 水源授权流程 | `ad4a79f` |
-| **只读** | 移除全部写工具：create/update post/topic/category/user、upload_file、save/delete_draft、Data Explorer query CRUD | `5ee412f` |
-| **重命名** | 所有 `discourse_*` 工具 → `shuiyuan_*`，资源 URI `discourse://` → `shuiyuan://`，User-Agent → `Shuiyuan-MCP`，server name → `@shuiyuan/mcp` | `33f7b40` |
-| **精简** | 移除 admin-only 工具（list_users、get_query、run_query）、Data Explorer 资源、sql_query prompt | `01e08bc` |
-| **精简** | 移除 `shuiyuan_select_site`（站点已硬编码为 `https://shuiyuan.sjtu.edu.cn`） | `ef55f3c` |
-| **媒体** | 新增 `shuiyuan_download_media`：并行下载帖子中的图片/附件/视频/音频 | `50387c5` |
-| **缓存** | 新增 SQLite FTS5 持久化搜索缓存：`search` 和 `read_topic` 支持 `cache: true` 离线模式，live 操作自动填充缓存 | `c00642e` |
-| **Skill** | 新增 `deepsearch` skill：指导模型在深度研究场景下使用缓存搜索/读取工作流 | `c00642e` |
-| **Docker** | 新增 Dockerfile + docker-compose，支持容器化部署 | `0dac049` |
-| **脚本** | 新增 `shuiyuan-api-key-login.ps1/.cmd` 启动脚本 | `ad4a79f` |
-| **Windows** | Windows launcher（ShuiyuanLauncher）支持三种模式分发：login / api-key-login / mcp | `ad4a79f` |
-| **默认值** | 站点硬编码 `https://shuiyuan.sjtu.edu.cn`，`tools_mode` 固定 `discourse_api_only`，`read_only: true`，`allow_writes: false` | 全局 |
-| **工具数** | 上游 20+ 工具 → 本 fork 9 个工具 + 6 个资源 + 0 个 prompt | — |
+在上游 Discourse MCP 基础上做了以下激进改动：
+
+- **纯只读**：移除全部写工具（发帖、编辑、用户资料修改、草稿管理、Data Explorer）
+- **品牌重命名**：所有 `discourse_*` 工具/资源/prompt 重命名为 `shuiyuan_*`，站点硬编码为 `https://shuiyuan.sjtu.edu.cn`
+- **精简**：移除 select_site、admin-only 工具、Data Explorer 资源和 prompt，从 20+ 工具缩减到 9 个
+- **新增能力**：User API Key 登录、媒体并行下载、SQLite FTS5 搜索缓存（支持离线搜索/读取）、deepsearch skill、Docker 部署

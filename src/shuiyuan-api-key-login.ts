@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, unlink } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "./util/cli.js";
 import {
@@ -19,21 +18,17 @@ import {
 /**
  * Shuiyuan User API Key login.
  *
- * Follows docs/shuiyuan-api-key.md: generate an RSA key pair, open the
- * /user-api-key/new authorization page in a browser, decrypt the returned
- * payload, and save a profile that authenticates via the `User-Api-Key`
- * header instead of cookies. Default scopes are read-only.
+ * Two-step flow:
+ *   1. First run (no --payload): generate RSA keypair, save private key to
+ *      a pending file, print authorization URL.
+ *   2. User authorizes in browser, copies the encrypted payload.
+ *   3. Second run (with --payload): load private key from pending file,
+ *      decrypt payload, save profile, clean up.
  */
 
-export interface ApiKeyLoginOptions {
-  site: string;
-  profileFile: string;
-  scopes: string;
-  applicationName: string;
-  clientId: string;
-  nonce: string;
-  payload?: string;
-  noOpen?: boolean;
+function pendingKeyFile(): string {
+  const dir = process.env.TEMP || process.env.TMPDIR || "/tmp";
+  return resolve(dir, "shuiyuan-api-key-pending.json");
 }
 
 function randomNonce(): string {
@@ -51,16 +46,6 @@ function openBrowser(url: string): void {
   } catch {
     // Ignore: opening the browser is a convenience, not a requirement.
   }
-}
-
-async function promptForPayload(): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => {
-    rl.question("Paste the encrypted payload here: ", (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
-  });
 }
 
 async function saveProfile(profileFile: string, site: string, userApiKey: string, clientId: string) {
@@ -95,39 +80,67 @@ export async function main(rawArgs = process.argv.slice(2)) {
   const scopes = typeof args.scopes === "string" ? args.scopes : "read";
   const applicationName = typeof args["application-name"] === "string" ? args["application-name"] : "shuiyuan-mcp";
   const clientId = typeof args["client-id"] === "string" ? args["client-id"] : "shuiyuan-mcp";
-  const nonce = typeof args.nonce === "string" ? args.nonce : randomNonce();
-  const payload = typeof args.payload === "string" ? args.payload : undefined;
   const noOpen = Boolean(args["no-open"]);
+  const payload = typeof args.payload === "string" ? args.payload : undefined;
 
   await mkdir(dirname(profileFile), { recursive: true });
 
+  if (payload) {
+    // ── Step 2: decrypt mode ──────────────────────────────────────
+    const pendingFile = pendingKeyFile();
+    let saved: { privateKey: string; nonce: string; clientId: string };
+    try {
+      saved = JSON.parse(await readFile(pendingFile, "utf8"));
+    } catch {
+      throw new Error(
+        `No pending login found at ${pendingFile}.\n` +
+        `Run without --payload first to generate the authorization URL.`,
+      );
+    }
+
+    process.stderr.write(`Shuiyuan User API Key login (decrypt mode)\n`);
+    process.stderr.write(`Site: ${site}\n`);
+
+    const decrypted = decryptPayload(payload, saved.privateKey);
+    const result = JSON.parse(decrypted) as { key?: string; nonce?: string };
+    if (!result.key) throw new Error("Invalid response: missing 'key' field");
+    if (result.nonce !== saved.nonce) {
+      throw new Error("Nonce mismatch: authorization response does not match this request");
+    }
+
+    await saveProfile(profileFile, site, result.key, saved.clientId);
+
+    // Clean up pending file
+    try { await unlink(pendingFile); } catch { /* ignore */ }
+
+    process.stderr.write(`Saved Shuiyuan profile: ${profileFile}\n`);
+    process.stderr.write("Start the MCP server with: shuiyuan-mcp\n");
+    return;
+  }
+
+  // ── Step 1: generate mode ──────────────────────────────────────
+  const nonce = randomNonce();
   const { publicKey, privateKey } = generateKeyPair();
+
   const authUrl = buildAuthorizationUrl(
     { site, scopes, applicationName, clientId, nonce },
     publicKey,
   );
 
+  // Save private key + nonce for the next run
+  const pendingFile = pendingKeyFile();
+  await mkdir(dirname(pendingFile), { recursive: true });
+  await writeFile(pendingFile, JSON.stringify({ privateKey, nonce, clientId }), "utf8");
+
   process.stderr.write(`Shuiyuan User API Key login\n`);
   process.stderr.write(`Site: ${site}\n`);
   process.stderr.write(`Scopes: ${scopes}\n`);
   process.stderr.write(`Authorize this application in your browser:\n${authUrl}\n`);
-  process.stderr.write("After authorizing, paste the encrypted payload below.\n");
+  process.stderr.write(`\nAfter authorizing, run again with:\n`);
+  process.stderr.write(`  node ${process.argv[1]} --payload <encrypted-payload>\n`);
+  process.stderr.write(`\n(Private key saved to ${pendingFile})\n`);
+
   if (!noOpen) openBrowser(authUrl);
-
-  const encrypted = payload ?? (await promptForPayload());
-  if (!encrypted) throw new Error("No payload provided");
-
-  const decrypted = decryptPayload(encrypted, privateKey);
-  const result = JSON.parse(decrypted) as { key?: string; nonce?: string };
-  if (!result.key) throw new Error("Invalid response: missing 'key' field");
-  if (result.nonce !== nonce) {
-    throw new Error("Nonce mismatch: authorization response does not match this request");
-  }
-
-  await saveProfile(profileFile, site, result.key, clientId);
-
-  process.stderr.write(`Saved Shuiyuan profile: ${profileFile}\n`);
-  process.stderr.write("Start the MCP server with: shuiyuan-mcp\n");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

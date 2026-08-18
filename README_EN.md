@@ -197,18 +197,9 @@ MIT. Upstream implementation from [Discourse MCP](https://github.com/discourse/d
 
 ## Changes vs Upstream `@dajiaohuang/discourse-mcp`
 
-| Category | Change | Commit |
-|----------|--------|--------|
-| **Auth** | Added User API Key login (`shuiyuan-api-key-login`) with RSA keypair + Shuiyuan authorization flow | `ad4a79f` |
-| **Read-only** | Removed all write tools: create/update post/topic/category/user, upload_file, save/delete_draft, Data Explorer query CRUD | `5ee412f` |
-| **Rename** | All `discourse_*` tools → `shuiyuan_*`, resource URIs `discourse://` → `shuiyuan://`, User-Agent → `Shuiyuan-MCP`, server name → `@shuiyuan/mcp` | `33f7b40` |
-| **Slim** | Removed admin-only tools (list_users, get_query, run_query), Data Explorer resources, sql_query prompt | `01e08bc` |
-| **Slim** | Removed `shuiyuan_select_site` (site hardcoded to `https://shuiyuan.sjtu.edu.cn`) | `ef55f3c` |
-| **Media** | Added `shuiyuan_download_media`: parallel download of images/attachments/video/audio from topics | `50387c5` |
-| **Cache** | Added SQLite FTS5 persistent search cache: `search` and `read_topic` support `cache: true` offline mode, live ops auto-populate cache | `c00642e` |
-| **Skill** | Added `deepsearch` skill: guides model to use cached search/read workflow for deep research | `c00642e` |
-| **Docker** | Added Dockerfile + docker-compose for containerized deployment | `0dac049` |
-| **Scripts** | Added `shuiyuan-api-key-login.ps1/.cmd` launcher scripts | `ad4a79f` |
-| **Windows** | Windows launcher (ShuiyuanLauncher) supports three modes: login / api-key-login / mcp | `ad4a79f` |
-| **Defaults** | Site hardcoded to `https://shuiyuan.sjtu.edu.cn`, `tools_mode` fixed to `discourse_api_only`, `read_only: true`, `allow_writes: false` | Global |
-| **Tool count** | Upstream 20+ tools → this fork 9 tools + 6 resources + 0 prompts | — |
+Aggressive changes on top of the upstream Discourse MCP:
+
+- **Read-only**: removed all write tools (posting, editing, user-profile changes, draft management, Data Explorer)
+- **Rebrand**: all `discourse_*` tools/resources/prompts renamed to `shuiyuan_*`, site hardcoded to `https://shuiyuan.sjtu.edu.cn`
+- **Slim**: removed select_site, admin-only tools, Data Explorer resources and prompt; reduced from 20+ tools to 9
+- **New capabilities**: User API Key login, parallel media download, SQLite FTS5 search cache (offline search/read), deepsearch skill, Docker deployment
