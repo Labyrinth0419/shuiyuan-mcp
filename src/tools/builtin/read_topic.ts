@@ -5,14 +5,16 @@ import { getCacheManager } from "../../cache/index.js";
 
 export const registerReadTopic: RegisterFn = (server, ctx) => {
   const RAW_POSTS_PER_PAGE = 100;
-  const STRUCTURED_AUTO_LIMIT = 20;
+  const DEFAULT_LIMIT = 5;
+  const MAX_LIMIT = 50;
+  const SAFETY_CAP = 500; // max posts in all mode without explicit override
   const CACHE_TTL_MS = 10000;
 
   const schema = z.object({
     topic_id: z.number().int().positive(),
-    post_limit: z.number().int().min(1).max(50).optional().describe("Max posts to return (default 5, max 50)"),
+    all: z.boolean().optional().describe("Read all posts in the topic (paginated via /raw/). Overrides post_limit."),
+    post_limit: z.number().int().min(1).max(500).optional().describe("Max posts to return (default 5). In all mode, acts as a safety cap (max 500)."),
     start_post_number: z.number().int().min(1).optional().describe("Start from this post number (1-based)"),
-    format: z.enum(["auto", "structured", "raw"]).optional().describe("Read format. structured returns per-post JSON; raw uses /raw pages to reduce requests for larger reads."),
     cache: z
       .enum(["false", "true"])
       .optional()
@@ -24,14 +26,18 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
     "shuiyuan_read_topic",
     {
       title: "Read Topic",
-      description: "Read topic metadata and posts. Supports cached/offline reads via local SQLite index. Live reads auto-populate the cache.",
+      description: "Read topic posts as markdown. Use all=true to read every post (best for deep research). Use cache=true for offline reads. Live reads auto-populate the local cache.",
       inputSchema: schema.shape,
     },
-    async ({ topic_id, post_limit = 5, start_post_number, format = "auto", cache = "false" }, _extra) => {
+    async ({ topic_id, all, post_limit, start_post_number, cache = "false" }, _extra) => {
       try {
         const cm = getCacheManager();
+        const readAll = all === true;
+        const limit = readAll
+          ? Math.min(post_limit ?? SAFETY_CAP, SAFETY_CAP)
+          : (post_limit ?? DEFAULT_LIMIT);
 
-        // Cache-only mode
+        // ── Cache-only mode ──────────────────────────────────────
         if (cache === "true") {
           const cached = cm.getTopic(topic_id);
           if (!cached) {
@@ -45,9 +51,8 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
           const start = start_post_number ?? 1;
           const posts = allPosts
             .filter((p) => p.post_number >= start)
-            .slice(0, post_limit)
+            .slice(0, limit)
             .map((p) => ({
-              id: p.topic_id,
               post_number: p.post_number,
               username: p.username,
               created_at: p.created_at,
@@ -70,105 +75,93 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
           });
         }
 
-        // Live read (default)
+        // ── Live read ───────────────────────────────────────────
         const { client } = ctx.siteState.ensureSelectedSite();
         const start = start_post_number ?? 1;
-        const strategy = format === "auto" && post_limit > STRUCTURED_AUTO_LIMIT ? "raw" : format === "auto" ? "structured" : format;
-        const limit = Number.isFinite(ctx.maxReadLength) ? ctx.maxReadLength : 50000;
+        const startPage = Math.floor((start - 1) / RAW_POSTS_PER_PAGE) + 1;
 
-        if (strategy === "raw") {
-          const topicData = (await client.getCached(`/t/${topic_id}.json`, CACHE_TTL_MS)) as any;
+        // 1) Fetch topic metadata once (for title, slug, category, etc.)
+        const topicData = (await client.getCached(`/t/${topic_id}.json`, CACHE_TTL_MS)) as any;
+        cm.upsertTopic(topicData);
 
-          // Cache the topic metadata
-          cm.upsertTopic(topicData);
+        const postsCount = Number(topicData?.posts_count || 0);
 
-          const postsCount = Number(topicData?.posts_count || 0);
-          const startPage = Math.floor((start - 1) / RAW_POSTS_PER_PAGE) + 1;
-          const requestedLastPost = start + post_limit - 1;
-          const boundedLastPost = postsCount > 0 ? Math.min(requestedLastPost, postsCount) : requestedLastPost;
-          const endPage = Math.max(startPage, Math.floor((boundedLastPost - 1) / RAW_POSTS_PER_PAGE) + 1);
-          const rawPages: Array<{ page: number; raw: string; truncated: boolean }> = [];
-          let remaining = limit;
-
-          for (let page = startPage; page <= endPage && remaining > 0; page++) {
-            const rawText = String(await client.getCached(`/raw/${topic_id}?page=${page}`, CACHE_TTL_MS));
-            const raw = rawText.slice(0, remaining);
-            rawPages.push({
-              page,
-              raw,
-              truncated: raw.length < rawText.length,
-            });
-            remaining -= raw.length;
-          }
-
-          return jsonResponse({
-            id: topic_id,
-            title: topicData?.title || `Topic ${topic_id}`,
-            slug: topicData?.slug || String(topic_id),
-            category_id: topicData?.category_id || null,
-            tags: Array.isArray(topicData?.tags) ? topicData.tags : [],
-            posts_count: topicData?.posts_count || null,
-            raw_pages: rawPages,
-            meta: {
-              strategy: "raw",
-              source: "live",
-              start_post: start,
-              requested_posts: post_limit,
-              posts_per_raw_page: RAW_POSTS_PER_PAGE,
-              start_page: startPage,
-              end_page: rawPages.length > 0 ? rawPages[rawPages.length - 1].page : startPage,
-              returned_pages: rawPages.length,
-              truncated: remaining <= 0,
-              has_more: postsCount > 0 ? postsCount > boundedLastPost : undefined,
-            },
-          });
-        }
-
-        // Structured read
-        let current = start;
-        const fetchedPosts: Array<{
-          id: number;
+        // 2) Paginate via /raw/ endpoint
+        const rawPages: Array<{ page: number; raw: string; truncated: boolean }> = [];
+        const collectedPosts: Array<{
           post_number: number;
           username: string;
           created_at: string;
           raw: string;
         }> = [];
-        let topicData: any = null;
+        let remaining = limit;
+        let emptyPageCount = 0;
+        let reachedEnd = false;
 
-        const maxBatches = 10;
-
-        for (let i = 0; i < maxBatches && fetchedPosts.length < post_limit; i++) {
-          const url = current > 1
-            ? `/t/${topic_id}.json?post_number=${current}&include_raw=true`
-            : `/t/${topic_id}.json?include_raw=true`;
-          const data = (await client.getCached(url, CACHE_TTL_MS)) as any;
-
-          if (i === 0) {
-            topicData = data;
-            // Cache the topic metadata
-            cm.upsertTopic(data);
+        for (let page = startPage; remaining > 0; page++) {
+          let rawText: string;
+          try {
+            rawText = String(await client.getCached(`/raw/${topic_id}?page=${page}`, CACHE_TTL_MS));
+          } catch {
+            // /raw/ returns 404 or empty when page exceeds total
+            break;
           }
 
-          const stream: any[] = Array.isArray(data?.post_stream?.posts) ? data.post_stream.posts : [];
-          const sorted = stream.slice().sort((a, b) => (a.post_number || 0) - (b.post_number || 0));
-          const filtered = sorted.filter((p) => (p.post_number || 0) >= current);
+          if (!rawText || rawText.trim().length === 0) {
+            emptyPageCount++;
+            if (emptyPageCount >= 2) break; // two consecutive empty pages = end of topic
+            continue;
+          }
+          emptyPageCount = 0;
 
-          for (const p of filtered) {
-            if (fetchedPosts.length >= post_limit) break;
-            fetchedPosts.push({
-              id: p.id,
-              post_number: p.post_number,
-              username: p.username,
-              created_at: p.created_at,
-              raw: (p.raw || p.cooked || p.excerpt || "").toString().slice(0, limit),
+          // Parse raw text: each post is separated by "-------------------------"
+          // Header format: "Username | YYYY-MM-DD HH:MM:SS UTC | #N"
+          const blocks = rawText.split(/^-------------------------$/m);
+
+          for (const block of blocks) {
+            if (remaining <= 0) break;
+
+            // Match header at the start of the block (may have leading whitespace)
+            const trimmed = block.trimStart();
+            const headerMatch = trimmed.match(/^(.+?)\s*\|\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+UTC\s*\|\s*#(\d+)/);
+            if (!headerMatch) continue;
+
+            const [, username, createdAt, postNumStr] = headerMatch;
+            const postNumber = parseInt(postNumStr, 10);
+            // Body starts after the header line (header + newline) in the trimmed string
+            const headerEnd = trimmed.indexOf('\n', headerMatch.index);
+            const body = headerEnd >= 0 ? trimmed.slice(headerEnd + 1).trim() : '';
+
+            // Skip posts before start
+            if (postNumber < start) continue;
+
+            collectedPosts.push({
+              post_number: postNumber,
+              username: username.trim(),
+              created_at: createdAt,
+              raw: body,
             });
-            // Cache each post
-            cm.insertPost(p, topic_id);
+            remaining--;
           }
 
-          if (filtered.length === 0) break;
-          current = (filtered[filtered.length - 1]?.post_number || current) + 1;
+          // If we got fewer posts than the page size, we've reached the end of the topic
+          const postsInPage = blocks.filter((b) => b.trim().match(/\|\s*#\d+/)).length;
+          if (postsInPage === 0 || postsInPage < RAW_POSTS_PER_PAGE) {
+            reachedEnd = true;
+            break;
+          }
         }
+
+        // Cache each post
+        for (const p of collectedPosts) {
+          cm.insertPost(
+            { id: p.post_number, post_number: p.post_number, username: p.username, created_at: p.created_at, raw: p.raw, cooked: "" },
+            topic_id,
+          );
+        }
+
+        const returned = collectedPosts.length;
+        const lastPostNumber = returned > 0 ? collectedPosts[returned - 1].post_number : start - 1;
 
         return jsonResponse({
           id: topic_id,
@@ -176,14 +169,16 @@ export const registerReadTopic: RegisterFn = (server, ctx) => {
           slug: topicData?.slug || String(topic_id),
           category_id: topicData?.category_id || null,
           tags: Array.isArray(topicData?.tags) ? topicData.tags : [],
-          posts_count: topicData?.posts_count || fetchedPosts.length,
-          posts: fetchedPosts,
+          posts_count: postsCount,
+          posts: collectedPosts,
           meta: {
-            strategy: "structured",
             source: "live",
+            strategy: "raw",
             start_post: start,
-            returned: fetchedPosts.length,
-            has_more: (topicData?.posts_count || 0) > (start + fetchedPosts.length - 1),
+            returned,
+            posts_per_page: RAW_POSTS_PER_PAGE,
+            has_more: !reachedEnd && remaining <= 0,
+            truncated: remaining <= 0 && postsCount > lastPostNumber,
           },
         });
       } catch (e: any) {

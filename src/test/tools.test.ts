@@ -165,7 +165,7 @@ test('default-search prefix is applied to queries', async () => {
   }
 });
 
-test('read_topic uses raw pages for larger auto reads', async () => {
+test('read_topic uses raw pages and parses posts', async () => {
   const logger = new Logger('silent');
   const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
   const { server, tools } = createMockServer();
@@ -178,14 +178,22 @@ test('read_topic uses raw pages for larger auto reads', async () => {
     if (url.endsWith('/about.json')) {
       return new Response(JSON.stringify({ about: { title: 'Example Discourse' } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
-    if (url.endsWith('/t/123.json')) {
-      return new Response(JSON.stringify({ id: 123, title: 'Big Topic', slug: 'big-topic', category_id: 7, tags: ['ai'], posts_count: 150 }), {
+    if (url.match(/\/t\/123\.json$/)) {
+      return new Response(JSON.stringify({ id: 123, title: 'Big Topic', slug: 'big-topic', category_id: 7, tags: ['ai'], posts_count: 2 }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
     }
     if (url.endsWith('/raw/123?page=1')) {
-      return new Response('raw page 1', { status: 200, headers: { 'Content-Type': 'text/plain' } });
+      const body = [
+        'alice | 2026-05-19 00:00:00 UTC | #1',
+        'Hello world',
+        '',
+        '-------------------------',
+        'bob | 2026-05-19 01:00:00 UTC | #2',
+        'Second post here',
+      ].join('\n');
+      return new Response(body, { status: 200, headers: { 'Content-Type': 'text/plain' } });
     }
     return new Response('not found', { status: 404 });
   }) as any;
@@ -201,16 +209,18 @@ test('read_topic uses raw pages for larger auto reads', async () => {
     const json = JSON.parse(String(result.content?.[0]?.text || '{}'));
 
     assert.equal(json.meta.strategy, 'raw');
-    assert.equal(json.raw_pages.length, 1);
-    assert.equal(json.raw_pages[0].raw, 'raw page 1');
+    assert.equal(json.posts.length, 2);
+    assert.equal(json.posts[0].username, 'alice');
+    assert.equal(json.posts[0].raw, 'Hello world');
+    assert.equal(json.posts[1].username, 'bob');
+    assert.equal(json.posts[1].raw, 'Second post here');
     assert.ok(calls.some(url => url.endsWith('/raw/123?page=1')));
-    assert.ok(!calls.some(url => url.includes('post_number=')));
   } finally {
     globalThis.fetch = originalFetch as any;
   }
 });
 
-test('read_topic keeps structured mode when explicitly requested', async () => {
+test('read_topic all mode paginates until empty', async () => {
   const logger = new Logger('silent');
   const siteState = new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
   const { server, tools } = createMockServer();
@@ -221,29 +231,16 @@ test('read_topic keeps structured mode when explicitly requested', async () => {
     if (url.endsWith('/about.json')) {
       return new Response(JSON.stringify({ about: { title: 'Example Discourse' } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
-    if (url.endsWith('/t/123.json?include_raw=true')) {
-      return new Response(JSON.stringify({
-        id: 123,
-        title: 'Small Topic',
-        slug: 'small-topic',
-        category_id: 7,
-        tags: [],
-        posts_count: 1,
-        post_stream: {
-          posts: [{ id: 1, post_number: 1, username: 'alice', created_at: '2026-05-19T00:00:00Z', raw: 'hello' }],
-        },
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (url.match(/\/t\/456\.json$/)) {
+      return new Response(JSON.stringify({ id: 456, title: 'Multi Page', slug: 'multi-page', category_id: 1, tags: [], posts_count: 2 }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      });
     }
-    if (url.endsWith('/t/123.json?post_number=2&include_raw=true')) {
-      return new Response(JSON.stringify({
-        id: 123,
-        title: 'Small Topic',
-        slug: 'small-topic',
-        category_id: 7,
-        tags: [],
-        posts_count: 1,
-        post_stream: { posts: [] },
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (url.endsWith('/raw/456?page=1')) {
+      return new Response('alice | 2026-05-19 00:00:00 UTC | #1\nPage 1 content', { status: 200, headers: { 'Content-Type': 'text/plain' } });
+    }
+    if (url.endsWith('/raw/456?page=2')) {
+      return new Response('', { status: 200, headers: { 'Content-Type': 'text/plain' } });
     }
     return new Response('not found', { status: 404 });
   }) as any;
@@ -255,12 +252,14 @@ test('read_topic keeps structured mode when explicitly requested', async () => {
 
     await registerAllTools(server, siteState, logger, { allowWrites: false, toolsMode: 'discourse_api_only' });
 
-    const result = await tools['shuiyuan_read_topic'].handler({ topic_id: 123, post_limit: 50, format: 'structured' }, {});
+    const result = await tools['shuiyuan_read_topic'].handler({ topic_id: 456, all: true }, {});
     const json = JSON.parse(String(result.content?.[0]?.text || '{}'));
 
-    assert.equal(json.meta.strategy, 'structured');
+    assert.equal(json.meta.strategy, 'raw');
     assert.equal(json.posts.length, 1);
-    assert.equal(json.posts[0].raw, 'hello');
+    assert.equal(json.posts[0].username, 'alice');
+    assert.equal(json.posts[0].raw, 'Page 1 content');
+    assert.equal(json.meta.has_more, false);
   } finally {
     globalThis.fetch = originalFetch as any;
   }
