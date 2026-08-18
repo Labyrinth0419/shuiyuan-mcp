@@ -7,6 +7,7 @@ export const registerSearch: RegisterFn = (server, ctx) => {
   const schema = z.object({
     query: z.string().min(1).describe("Search query"),
     max_results: z.number().int().min(1).max(50).optional(),
+    page: z.number().int().min(1).optional().describe("Search result page number for pagination (default 1)"),
     cache: z
       .enum(["false", "true", "refresh"])
       .optional()
@@ -26,7 +27,7 @@ export const registerSearch: RegisterFn = (server, ctx) => {
       inputSchema: schema.shape,
     },
     async (args, _extra) => {
-      const { query, max_results = 10, cache = "false" } = args;
+      const { query, max_results = 10, page, cache = "false" } = args;
 
       try {
         // Cache-only mode: search local SQLite
@@ -59,6 +60,7 @@ export const registerSearch: RegisterFn = (server, ctx) => {
           ? `${ctx.defaultSearchPrefix} ${query}`
           : query;
         q.set("q", fullQuery);
+        if (page && page > 1) q.set("page", String(page));
 
         const data = (await client.get(`/search.json?${q.toString()}`)) as any;
         const topics: any[] = data?.topics || [];

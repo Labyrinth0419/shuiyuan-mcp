@@ -279,6 +279,8 @@ const EXPECTED_TOOLS = [
   'shuiyuan_get_chat_messages',
   'shuiyuan_get_draft',
   'shuiyuan_download_media',
+  'shuiyuan_topic_meta',
+  'shuiyuan_user_card',
 ];
 
 test('read-only server registers exactly read tools', async () => {

@@ -12,6 +12,8 @@ import {
   registerGetDraft,
 } from "./builtin/drafts.js";
 import { registerDownloadMedia } from "./builtin/download_media.js";
+import { registerTopicMeta } from "./builtin/topic_meta.js";
+import { registerUserCard } from "./builtin/user_card.js";
 
 // Note: The following tools have been replaced by MCP Resources (v0.2.0):
 // - shuiyuan_list_categories → shuiyuan://site/categories
@@ -56,6 +58,10 @@ export async function registerAllTools(
   registerListUserPosts(server, ctx, { allowWrites: false });
   registerGetChatMessages(server, ctx, { allowWrites: false });
   registerGetDraft(server, ctx, { allowWrites: false });
+
+  // Metadata and user tools
+  registerTopicMeta(server, ctx, { allowWrites: false });
+  registerUserCard(server, ctx, { allowWrites: false });
 
   // Media download tool (writes to local filesystem)
   registerDownloadMedia(server, ctx, { allowWrites: true });
